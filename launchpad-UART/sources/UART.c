@@ -4,7 +4,8 @@
  * Description: UART Library.
  * Author: Marco Vedovati
  *
- * Initial implementation taken from:
+ ******************************************************************************/
+/* Initial implementation from:
  * Author: Nicholas J. Conn - http://msp430launchpad.com
  * Email: webmaster at msp430launchpad.com
  ******************************************************************************/
