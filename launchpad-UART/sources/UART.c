@@ -1,16 +1,12 @@
 /******************************************************************************
  *                 Half Duplex Software UART on the LaunchPad
  * 
- * Description: This code provides a simple Bi-Directional Half Duplex
- * 		Software UART. The timing is dependant on SMCLK, which
- * 		is set to 1MHz. The transmit function is based off of
- * 		the example code provided by TI with the LaunchPad.
- * 		This code was originally created for "NJC's MSP430
- * 		LaunchPad Blog".
- * 
+ * Description: UART Library.
+ * Author: Marco Vedovati
+ *
+ * Initial implementation taken from:
  * Author: Nicholas J. Conn - http://msp430launchpad.com
  * Email: webmaster at msp430launchpad.com
- * Date: 08-17-10
  ******************************************************************************/
   
 #include <io430.h>
