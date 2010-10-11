@@ -11,16 +11,16 @@ ActionState=1
 Enabled=0
 ShowSource=1
 [State Storage]
-Control Register=63950
+Control Register=63958
 [Sequencer]
-Control Register=63950
-NextState0=63950
-NextState1=63950
+Control Register=63958
+NextState0=63958
+NextState1=63958
 [Action Register]
 Break=1
 State Storage=1
 [DebugChecksum]
-Checksum=1106033235
+Checksum=-537035220
 [DisAssemblyWindow]
 NumStates=_ 1
 State 1=_ 1
@@ -40,16 +40,8 @@ UseTrigger=1
 TriggerName=main
 LimitSize=0
 ByteLimit=50
-[Log file]
-LoggingEnabled=_ 0
-LogFile=_ ""
-Category=_ 0
-[TermIOLog]
-LoggingEnabled=_ 0
-LogFile=_ ""
 [Breakpoints]
-Bp0=_ "STD_CODE" "{$PROJ_DIR$\sources\UART.c}.75.5@1" 0 0 0 0 "" 0 ""
-Count=1
+Count=0
 [FET]
 Clock mode=38
 Extended Clock mode=-1
@@ -70,6 +62,13 @@ SP=0
 SR=0
 all registers=0
 File name=
+[Log file]
+LoggingEnabled=_ 0
+LogFile=_ ""
+Category=_ 0
+[TermIOLog]
+LoggingEnabled=_ 0
+LogFile=_ ""
 [Aliases]
 Count=0
 SuppressDialog=0

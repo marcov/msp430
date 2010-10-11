@@ -1,13 +1,13 @@
 /******************************************************************************
  *                 Half Duplex Software UART on the LaunchPad
- * 
+ *
+ ******************************************************************************
  * Description: UART Library.
  * Author: Marco Vedovati
  *
- ******************************************************************************/
-/* Initial implementation from:
+ ******************************************************************************
+ * Initial implementation from:
  * Author: Nicholas J. Conn - http://msp430launchpad.com
- * Email: webmaster at msp430launchpad.com
  ******************************************************************************/
   
 #include <io430.h>
@@ -22,16 +22,34 @@
 
 
 
-unsigned char BitCnt;		// Bit count, used when transmitting byte
-unsigned int TXByte;		// Value sent over UART when Transmit() is called
-unsigned int RXByte;		// Value recieved once hasRecieved is set
+unsigned char UART_bits_ctr;		// Bit count, used when transmitting byte
+unsigned short UART_tx_char;		// Value sent over UART when UART_tx_char() is called
+unsigned short UART_rx_char;		// Value recieved once hasRecieved is set
 
-unsigned char isReceiving;		// Status for when the device is receiving
-unsigned char hasReceived;		// Lets the program know when a byte is received
 
-// Function Definitions
-void Transmit(void);
+typedef enum {
+  UART_IDLE,
+  UART_RECEIVING,
+  UART_RECEIVED,
+  UART_ERROR,
+  UART_TRANSMITTING
+} UART_mode_t;
 
+UART_mode_t UART_mode;
+
+
+static void start_UART_tx_char(char chr);
+
+
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Initializes the UART pins.
+ * \param
+ * \return 
+ *
+ *
+ */
 void initUART(void)
 {
   P1SEL &= ~(TXD+BIT0);
@@ -42,60 +60,85 @@ void initUART(void)
   P1IE |= RXD;				// Enable RXD interrupt
   
   
-  isReceiving = 0;			// Set initial values
-  hasReceived = 0;
+  UART_mode = UART_IDLE;
 }
 
-
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Echo back character received from UART.
+ * \param
+ * \return 
+ *
+ *
+ */
 void UART_echo_mode(void)
 {
-  if (hasReceived) {
+  if (UART_mode == UART_RECEIVED) {
     // If the device has recieved a value
-    hasReceived = 0;	// Clear the flag
-    TXByte = RXByte;	// Load the recieved byte into the byte to be transmitted
-    Transmit();
+    UART_mode = UART_IDLE;
+    start_UART_tx_char(UART_rx_char);
   } else {
     __low_power_mode_0();        
-    // LPM0, the ADC interrupt will wake the processor up. This is so that it does not
+    // LPM0, the PORT1 interrupt will wake the processor up. This is so that it does not
     //	endlessly loop when no value has been Received.
   }
 }
 
-
-void UART_tx_string (unsigned char * str)
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Transmits a string over UART.
+ * \param str The string to transmit, terminated by a '\0' character.
+ * \return 
+ *
+ *
+ */
+void UART_tx_string (char * str)
 {
   while ( *str != '\0' ) {
-    TXByte = *str;
-    Transmit();
-    __low_power_mode_0(); // wait for TX completion.
+    start_UART_tx_char(*str);
+   
+    __low_power_mode_0(); //go to low power until tx has finished, but keep SMCLK on.
     str++;
   }
 }
-// Function Transmits Character from TXByte 
-void Transmit()
-{ 
-	while(isReceiving);			// Wait for RX completion
-  	CCTL0 = OUT;				// TXD Idle as Mark
-  	TACTL = TASSEL_2 + MC_2;		// SMCLK, continuous mode
 
-  	BitCnt = 10;				// Load Bit counter, 8 bits + ST/SP
-  	CCR0 = TAR;				// Initialize compare register
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Trigger the start of a char TX over UART.
+ * \param
+ * \return 
+ *
+ *
+ */
+static void start_UART_tx_char(char chr)
+{ 
+  while(UART_mode == UART_RECEIVING);   // Wait for RX completion
   
-  	CCR0 += BIT_TIME;			// Set time till first bit
-  	TXByte |= 0x100;			// Add stop bit to TXByte (which is logical 1)
-  	TXByte = TXByte << 1;			// Add start bit (which is logical 0)
+  CCTL0 = OUT;				// TXD Idle as Mark
+  TACTL = TASSEL_2 + MC_2;		// SMCLK, continuous mode
   
-        CCTL0 = CCIE;
-        ACT_LED ^=1;
-  	//CCTL0 =  CCIS_0 + OUTMOD_0 + CCIE;	// Set signal, intial value, enable interrupts
-  	//while ( CCTL0 & CCIE );		// Wait for previous TX completion
+  UART_bits_ctr = 10;				// Load Bit counter, 8 bits + ST/SP
+  CCR0 = TAR;				// Initialize compare register
+  
+  UART_tx_char = chr;	                // Load the recieved byte into the byte to be transmitted
+  
+  CCR0 += BIT_TIME;			// Set time till first bit
+  UART_tx_char |= 0x100;		// Add stop bit to UART_tx_char (which is logical 1)
+  UART_tx_char <<= 1;	                // Add start bit (which is logical 0)
+  
+  UART_mode = UART_TRANSMITTING;
+  
+  CCTL0 = CCIE;
+  ACT_LED ^=1;
 }
 
+
+/*----------------------------------------------------------------------------*/
 // Port 1 interrupt service routine
 #pragma vector=PORT1_VECTOR
-__interrupt void Port_1(void)
+__interrupt void PORT1_ISR(void)
 {  	
-  isReceiving = 1;
+  UART_mode = UART_RECEIVING;
   
   P1IE &= ~RXD;			// Disable RXD interrupt
   P1IFG &= ~RXD;		// Clear RXD IFG (interrupt flag)
@@ -105,30 +148,31 @@ __interrupt void Port_1(void)
   CCR0 += BIT_TIME_5;		// Set time till first bit
   CCTL0 = OUTMOD_1 + CCIE;	// Dissable TX and enable interrupts
   
-  RXByte = 0;			// Initialize RXByte
-  BitCnt = 0x9;			// Load Bit counter, 8 bits + ST
+  UART_rx_char = 0;		// Initialize UART_rx_char
+  UART_bits_ctr = 0x9;			// Load Bit counter, 8 bits + ST
   
   
 }
 
+/*----------------------------------------------------------------------------*/
 // Timer A0 interrupt service routine
 #pragma vector=TIMERA0_VECTOR
-__interrupt void Timer_A (void)
+__interrupt void TimerA0_ISR (void)
 {
-  if(!isReceiving)
-  {
+  if(UART_mode == UART_TRANSMITTING) {
     CCR0 += BIT_TIME;			// Add Offset to CCR0  
-    if ( BitCnt == 0)			// If all bits TXed
-    {
+    
+    if ( UART_bits_ctr == 0) {		
+      // If all bits TXed
+      UART_mode = UART_IDLE;
+      
       TACTL = TASSEL_2;		// SMCLK, timer off (for power consumption)
       CCTL0 &= ~ CCIE ;		// Disable interrupt
       __low_power_mode_off_on_exit();
       ACT_LED =0;
     }
-    else
-    {
-      
-      if (TXByte & 0x01) {
+    else {
+      if (UART_tx_char & 0x01) {
         //CCTL0 &= ~ OUTMOD_2;	   // If it should be 1, set it to 1
         P1OUT |= TXD;
       }
@@ -136,37 +180,37 @@ __interrupt void Timer_A (void)
         //CCTL0 |=  OUTMOD_2;	   // Set TX bit to 0
         P1OUT &= ~TXD;
       }
-      TXByte = TXByte >> 1;
-      BitCnt --;
+      UART_tx_char = UART_tx_char >> 1;
+      UART_bits_ctr --;
     }
-  }
-  else
-  {
+  } else {
     CCR0 += BIT_TIME;				// Add Offset to CCR0  
-    if ( BitCnt == 0)
-    {
+    if ( UART_bits_ctr == 0) {
       TACTL = TASSEL_2;			// SMCLK, timer off (for power consumption)
       CCTL0 &= ~ CCIE ;			// Disable interrupt
-      
-      isReceiving = 0;
       
       P1IFG &= ~RXD;				// clear RXD IFG (interrupt flag)
       P1IE |= RXD;				// enabled RXD interrupt
       
-      if ( (RXByte & 0x201) == 0x200)		// Validate the start and stop bits are correct
-      {
-        RXByte = RXByte >> 1;		// Remove start bit
-        RXByte &= 0xFF;			// Remove stop bit
-        hasReceived = 1;
+      if ( (UART_rx_char & 0x201) == 0x200) {
+        // Validate the start and stop bits are correct
+      
+        UART_rx_char = UART_rx_char >> 1;	// Remove start bit
+        UART_rx_char &= 0xFF;			// Remove stop bit
+        UART_mode = UART_RECEIVED;
+      } else {
+        UART_mode = UART_ERROR;
       }
       __low_power_mode_off_on_exit();
     }
     else
     {
-      if ( (P1IN & RXD) == RXD)		// If bit is set?
-        RXByte |= 0x400;		// Set the value in the RXByte 
-      RXByte = RXByte >> 1;		// Shift the bits down
-      BitCnt --;
+      if ( (P1IN & RXD) == RXD) {		
+        // If bit is set?
+        UART_rx_char |= 0x400;		// Set the value in the UART_rx_char
+      }
+      UART_rx_char >>= 1;		// Shift the bits down
+      UART_bits_ctr --;
     }
   }
 }

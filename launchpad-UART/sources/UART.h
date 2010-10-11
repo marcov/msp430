@@ -4,7 +4,7 @@
 void Transmit(void);
 void initUART(void);
 void UART_echo_mode(void);
-void UART_tx_string (unsigned char * str);
+void UART_tx_string (char * str);
 
 
 #endif //__UART_H__
