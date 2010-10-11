@@ -11,16 +11,16 @@ ActionState=1
 Enabled=0
 ShowSource=1
 [State Storage]
-Control Register=63958
+Control Register=63980
 [Sequencer]
-Control Register=63958
-NextState0=63958
-NextState1=63958
+Control Register=63980
+NextState0=63980
+NextState1=63980
 [Action Register]
 Break=1
 State Storage=1
 [DebugChecksum]
-Checksum=-537035220
+Checksum=1427449923
 [DisAssemblyWindow]
 NumStates=_ 1
 State 1=_ 1

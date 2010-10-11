@@ -17,8 +17,15 @@
 #define		RXD		BIT2	// RXD on P1.2
 #define         ACT_LED         P1OUT_bit.P1OUT_0
 
-#define   BIT_TIME    	104		// 9600 Baud, SMCLK=1MHz (1MHz/9600)=104
-#define	  BIT_TIME_5	52		// Time for half a bit.
+
+//Baudrate = SMCLK freq(1MHz) / Baudrate
+// Seems like max speed working is 9600 bauds...
+#define BAUDRATE_4800    	208
+#define BAUDRATE_9600    	104		
+
+
+#define ONE_BIT_TIME            BAUDRATE_9600
+#define CENTER_BIT_TIME         (ONE_BIT_TIME / 2)
 
 
 
@@ -122,14 +129,14 @@ static void start_UART_tx_char(char chr)
   
   UART_tx_char = chr;	                // Load the recieved byte into the byte to be transmitted
   
-  CCR0 += BIT_TIME;			// Set time till first bit
+  CCR0 += ONE_BIT_TIME;		// Set time till first bit
   UART_tx_char |= 0x100;		// Add stop bit to UART_tx_char (which is logical 1)
   UART_tx_char <<= 1;	                // Add start bit (which is logical 0)
   
   UART_mode = UART_TRANSMITTING;
   
   CCTL0 = CCIE;
-  ACT_LED ^=1;
+  ACT_LED = 1;
 }
 
 
@@ -140,16 +147,18 @@ __interrupt void PORT1_ISR(void)
 {  	
   UART_mode = UART_RECEIVING;
   
+  ACT_LED = 1;
+  
   P1IE &= ~RXD;			// Disable RXD interrupt
   P1IFG &= ~RXD;		// Clear RXD IFG (interrupt flag)
   
   TACTL = TASSEL_2 + MC_2;	// SMCLK, continuous mode
   CCR0 = TAR;			// Initialize compare register
-  CCR0 += BIT_TIME_5;		// Set time till first bit
+  CCR0 += CENTER_BIT_TIME;	// Set time till first bit
   CCTL0 = OUTMOD_1 + CCIE;	// Dissable TX and enable interrupts
   
   UART_rx_char = 0;		// Initialize UART_rx_char
-  UART_bits_ctr = 0x9;			// Load Bit counter, 8 bits + ST
+  UART_bits_ctr = 0x9;		// Load Bit counter, 8 bits + ST
   
   
 }
@@ -160,7 +169,7 @@ __interrupt void PORT1_ISR(void)
 __interrupt void TimerA0_ISR (void)
 {
   if(UART_mode == UART_TRANSMITTING) {
-    CCR0 += BIT_TIME;			// Add Offset to CCR0  
+    CCR0 += ONE_BIT_TIME;			// Add Offset to CCR0  
     
     if ( UART_bits_ctr == 0) {		
       // If all bits TXed
@@ -184,7 +193,7 @@ __interrupt void TimerA0_ISR (void)
       UART_bits_ctr --;
     }
   } else {
-    CCR0 += BIT_TIME;				// Add Offset to CCR0  
+    CCR0 += ONE_BIT_TIME;				// Add Offset to CCR0  
     if ( UART_bits_ctr == 0) {
       TACTL = TASSEL_2;			// SMCLK, timer off (for power consumption)
       CCTL0 &= ~ CCIE ;			// Disable interrupt
@@ -201,6 +210,8 @@ __interrupt void TimerA0_ISR (void)
       } else {
         UART_mode = UART_ERROR;
       }
+      
+      ACT_LED = 0;
       __low_power_mode_off_on_exit();
     }
     else

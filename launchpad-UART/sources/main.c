@@ -25,9 +25,10 @@ void main( void )
     
   while(1) {
     
-    UART_echo_mode();
-    //UART_tx_string(UART_TEST_PATTERN);
+    //UART_echo_mode();
     
-    __delay_cycles(200000uL);
+    
+    UART_tx_string(UART_TEST_PATTERN);
+    __delay_cycles(500000uL);
   }
 }
