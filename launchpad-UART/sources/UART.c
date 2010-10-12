@@ -12,9 +12,9 @@
 #include <io430.h>
 #include <in430.h>
 
-#define TXD         BIT1              // TXD on P1.1
-#define RXD         BIT2	            // RXD on P1.2
-#define ACT_LED     P1OUT_bit.P1OUT_0
+#define TXD         BIT1                // TXD on P1.1
+#define RXD         BIT2                // RXD on P1.2
+#define ACT_LED     P1OUT_bit.P1OUT_0   // Activity led out port
 
 
 //Baudrate = SMCLK freq(1MHz) / Baudrate
