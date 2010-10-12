@@ -1,19 +1,20 @@
 /******************************************************************************
- *                 Half Duplex Software UART on the LaunchPad
+ * Half Duplex Software UART on the LaunchPad
+ * This implementation drives TXD as GPIO, so accuracy may not be optimal.
+ * An alternative implementation could use the Capture/Compare functionality.
  *
  ******************************************************************************
  * Description: UART Library.
  * Author: Marco Vedovati
- *
  ******************************************************************************
- * Initial implementation from:
+ * Original implementation from:
  * Author: Nicholas J. Conn - http://msp430launchpad.com
  ******************************************************************************/
 #include <io430.h>
 #include <in430.h>
 
 /* 
- *  TX and RX bits order:
+ *  TX and RX transmit order:
  *
  *   (1st bit)                     (last bit)
  *   +-------+-------+-----+-------+-------+
@@ -28,12 +29,14 @@
 
 
 //Baudrate = SMCLK freq(1MHz) / Baudrate
-// Seems like max speed working is 9600 bauds...
+// Seems like max speed working on the Launchpad board is 9600 bauds...
+#define BAUDRATE_1200    	833
+#define BAUDRATE_2400    	417
 #define BAUDRATE_4800    	208
 #define BAUDRATE_9600    	104		
 
 #define ONE_BIT_TIME      BAUDRATE_9600
-#define CENTER_BIT_TIME   (ONE_BIT_TIME / 2)
+#define HALF_BIT_TIME   (ONE_BIT_TIME / 2)
 
 typedef enum {
   UART_IDLE,
@@ -46,7 +49,7 @@ typedef enum {
 /*
  * Variables declaration
  */
-static unsigned char UART_bits_ctr;		// Bit count, used when transmitting byte
+static unsigned char UART_bits_ctr;	// Bit count, used when transmitting byte
 static unsigned short UART_tx_char;	// Value sent over UART when UART_tx_char() is called
 static unsigned short UART_rx_char;	// Value recieved once hasRecieved is set
 static UART_mode_t UART_mode;
@@ -68,12 +71,14 @@ static void start_UART_tx_char(char chr);
 void initUART(void)
 {
   P1SEL &= ~(TXD+BIT0);
+  P1OUT |= TXD;     // Set TX as idle high.
   P1DIR |= (TXD+BIT0);
   
   P1IES |= RXD;				// RXD Hi/lo edge interrupt
   P1IFG &= ~RXD;			// Clear RXD (flag) before enabling interrupt
   P1IE |= RXD;				// Enable RXD interrupt
-  
+ 
+  TACTL = TASSEL_2;
   
   UART_mode = UART_IDLE;
 }
@@ -130,17 +135,16 @@ static void start_UART_tx_char(char chr)
   while(UART_mode == UART_RECEIVING);   // Wait for RX completion
   
   UART_tx_char = chr;	                // Load the recieved byte into the byte to be transmitted
-  UART_tx_char |= 0x100;              // Add stop bit to UART_tx_char (which is logical 1)
+  UART_tx_char |= 0x100;                // Add stop bit to UART_tx_char (which is logical 1)
   UART_tx_char <<= 1;	                // Add start bit (which is logical 0)  
-  UART_bits_ctr = 10;				          // Load Bit counter, 8 bits + ST/SP
-  
-  CCTL0 = OUT;				                // TXD Idle as Mark
-  TACTL = TASSEL_2 + MC_2;		        // SMCLK, continuous mode
-  CCR0 = (TAR + ONE_BIT_TIME);				// Initialize compare register
+  UART_bits_ctr = 10;			// Load Bit counter, 8 bits + STOP. We send start now.
   
   UART_mode = UART_TRANSMITTING;
   
-  CCTL0 = CCIE;
+  TACTL |= MC_2;		        // Start TIMER continuous mode
+  CCR0 = (TAR);			        // Initialize compare register
+  CCTL0 = CCIE+CCIFG;
+  
   ACT_LED = 1;
 }
 
@@ -157,10 +161,10 @@ __interrupt void PORT1_ISR(void)
   P1IE &= ~RXD;			// Disable RXD interrupt
   P1IFG &= ~RXD;		// Clear RXD IFG (interrupt flag)
   
-  TACTL = TASSEL_2 + MC_2;	// SMCLK, continuous mode
+  TACTL |= MC_2;		        // Start TIMER continuous mode 
   CCR0 = TAR;			// Initialize compare register
-  CCR0 += CENTER_BIT_TIME;	// Set time till first bit
-  CCTL0 = OUTMOD_1 + CCIE;	// Dissable TX and enable interrupts
+  CCR0 += HALF_BIT_TIME;	// Latch bit at half of the bit time.
+  CCTL0 = CCIE;         	// Dissable TX and enable interrupts
   
   UART_rx_char = 0;		// Initialize UART_rx_char
   UART_bits_ctr = 9;		// Load Bit counter, 8 bits + STOP
@@ -180,27 +184,25 @@ __interrupt void TimerA0_ISR (void)
       // If all bits TXed
       UART_mode = UART_IDLE;
       
-      TACTL = TASSEL_2;		// SMCLK, timer off (for power consumption)
+      TACTL_bit.TAMC &= 0;	// timer off (for power consumption)
       CCTL0 &= ~ CCIE ;		// Disable interrupt
       __low_power_mode_off_on_exit();
       ACT_LED =0;
     }
     else {
       if (UART_tx_char & 0x01) {
-        //CCTL0 &= ~ OUTMOD_2;	   // If it should be 1, set it to 1
         P1OUT |= TXD;
       }
       else {
-        //CCTL0 |=  OUTMOD_2;	   // Set TX bit to 0
         P1OUT &= ~TXD;
       }
-      UART_tx_char = UART_tx_char >> 1;
-      UART_bits_ctr --;
+      UART_tx_char >>= 1;
+      UART_bits_ctr--;
     }
   } else {
     CCR0 += ONE_BIT_TIME;				// Add Offset to CCR0  
     if ( UART_bits_ctr == 0) {
-      TACTL = TASSEL_2;			// SMCLK, timer off (for power consumption)
+      TACTL_bit.TAMC &= 0;	// timer off (for power consumption)
       CCTL0 &= ~ CCIE ;			// Disable interrupt
       
       P1IFG &= ~RXD;				// clear RXD IFG (interrupt flag)
