@@ -9,13 +9,12 @@
  * Initial implementation from:
  * Author: Nicholas J. Conn - http://msp430launchpad.com
  ******************************************************************************/
-  
 #include <io430.h>
 #include <in430.h>
 
-#define		TXD             BIT1    // TXD on P1.1
-#define		RXD		BIT2	// RXD on P1.2
-#define         ACT_LED         P1OUT_bit.P1OUT_0
+#define TXD         BIT1              // TXD on P1.1
+#define RXD         BIT2	            // RXD on P1.2
+#define ACT_LED     P1OUT_bit.P1OUT_0
 
 
 //Baudrate = SMCLK freq(1MHz) / Baudrate
@@ -23,15 +22,8 @@
 #define BAUDRATE_4800    	208
 #define BAUDRATE_9600    	104		
 
-
-#define ONE_BIT_TIME            BAUDRATE_9600
-#define CENTER_BIT_TIME         (ONE_BIT_TIME / 2)
-
-
-
-unsigned char UART_bits_ctr;		// Bit count, used when transmitting byte
-unsigned short UART_tx_char;		// Value sent over UART when UART_tx_char() is called
-unsigned short UART_rx_char;		// Value recieved once hasRecieved is set
+#define ONE_BIT_TIME      BAUDRATE_9600
+#define CENTER_BIT_TIME   (ONE_BIT_TIME / 2)
 
 
 typedef enum {
@@ -42,12 +34,20 @@ typedef enum {
   UART_TRANSMITTING
 } UART_mode_t;
 
-UART_mode_t UART_mode;
+/*
+ * Variables declaration
+ */
+static unsigned char UART_bits_ctr;		// Bit count, used when transmitting byte
+static unsigned short UART_tx_char;	// Value sent over UART when UART_tx_char() is called
+static unsigned short UART_rx_char;	// Value recieved once hasRecieved is set
 
+static UART_mode_t UART_mode;
+
+/*
+ * Fxs prototypes
+ */
 
 static void start_UART_tx_char(char chr);
-
-
 
 /*----------------------------------------------------------------------------*/
 /*
