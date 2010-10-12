@@ -12,6 +12,16 @@
 #include <io430.h>
 #include <in430.h>
 
+/* 
+ *  TX and RX bits order:
+ *
+ *   (1st bit)                     (last bit)
+ *   +-------+-------+-----+-------+-------+
+ *   | Start | 0 LSb | ... | 7 MSb | Stop  |
+ *   +-------+-------+-----+-------+-------+
+ *
+ */
+
 #define TXD         BIT1                // TXD on P1.1
 #define RXD         BIT2                // RXD on P1.2
 #define ACT_LED     P1OUT_bit.P1OUT_0   // Activity led out port
@@ -24,7 +34,6 @@
 
 #define ONE_BIT_TIME      BAUDRATE_9600
 #define CENTER_BIT_TIME   (ONE_BIT_TIME / 2)
-
 
 typedef enum {
   UART_IDLE,
@@ -40,13 +49,12 @@ typedef enum {
 static unsigned char UART_bits_ctr;		// Bit count, used when transmitting byte
 static unsigned short UART_tx_char;	// Value sent over UART when UART_tx_char() is called
 static unsigned short UART_rx_char;	// Value recieved once hasRecieved is set
-
 static UART_mode_t UART_mode;
 
+/*----------------------------------------------------------------------------*/
 /*
  * Fxs prototypes
  */
-
 static void start_UART_tx_char(char chr);
 
 /*----------------------------------------------------------------------------*/
@@ -121,17 +129,14 @@ static void start_UART_tx_char(char chr)
 { 
   while(UART_mode == UART_RECEIVING);   // Wait for RX completion
   
-  CCTL0 = OUT;				// TXD Idle as Mark
-  TACTL = TASSEL_2 + MC_2;		// SMCLK, continuous mode
-  
-  UART_bits_ctr = 10;				// Load Bit counter, 8 bits + ST/SP
-  CCR0 = TAR;				// Initialize compare register
-  
   UART_tx_char = chr;	                // Load the recieved byte into the byte to be transmitted
+  UART_tx_char |= 0x100;              // Add stop bit to UART_tx_char (which is logical 1)
+  UART_tx_char <<= 1;	                // Add start bit (which is logical 0)  
+  UART_bits_ctr = 10;				          // Load Bit counter, 8 bits + ST/SP
   
-  CCR0 += ONE_BIT_TIME;		// Set time till first bit
-  UART_tx_char |= 0x100;		// Add stop bit to UART_tx_char (which is logical 1)
-  UART_tx_char <<= 1;	                // Add start bit (which is logical 0)
+  CCTL0 = OUT;				                // TXD Idle as Mark
+  TACTL = TASSEL_2 + MC_2;		        // SMCLK, continuous mode
+  CCR0 = (TAR + ONE_BIT_TIME);				// Initialize compare register
   
   UART_mode = UART_TRANSMITTING;
   
@@ -158,7 +163,7 @@ __interrupt void PORT1_ISR(void)
   CCTL0 = OUTMOD_1 + CCIE;	// Dissable TX and enable interrupts
   
   UART_rx_char = 0;		// Initialize UART_rx_char
-  UART_bits_ctr = 0x9;		// Load Bit counter, 8 bits + ST
+  UART_bits_ctr = 9;		// Load Bit counter, 8 bits + STOP
   
   
 }
@@ -214,8 +219,7 @@ __interrupt void TimerA0_ISR (void)
       ACT_LED = 0;
       __low_power_mode_off_on_exit();
     }
-    else
-    {
+    else {
       if ( (P1IN & RXD) == RXD) {		
         // If bit is set?
         UART_rx_char |= 0x400;		// Set the value in the UART_rx_char
