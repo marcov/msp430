@@ -12,7 +12,8 @@
  ******************************************************************************/
 #include <io430.h>
 #include <in430.h>
-
+#include "UART.h"
+#include "board_support.h"
 /* 
  *  TX and RX transmit order:
  *
@@ -23,11 +24,6 @@
  *
  */
 
-#define TXD         BIT1                // TXD on P1.1
-#define RXD         BIT2                // RXD on P1.2
-#define ACT_LED     P1OUT_bit.P1OUT_0   // Activity led out port
-
-
 //Baudrate = SMCLK freq(1MHz) / Baudrate
 // Seems like max speed working on the Launchpad board is 9600 bauds...
 #define BAUDRATE_1200    	833
@@ -37,6 +33,8 @@
 
 #define ONE_BIT_TIME      BAUDRATE_9600
 #define HALF_BIT_TIME   (ONE_BIT_TIME / 2)
+
+/*----------------------------------------------------------------------------*/
 
 typedef enum {
   UART_IDLE,
@@ -125,7 +123,7 @@ void UART_tx_string (char * str)
 /*----------------------------------------------------------------------------*/
 /*
  * \brief Trigger the start of a char TX over UART.
- * \param
+ * \param the character to transmit.
  * \return 
  *
  *
@@ -150,10 +148,18 @@ static void start_UART_tx_char(char chr)
 
 
 /*----------------------------------------------------------------------------*/
-// Port 1 interrupt service routine
-#pragma vector=PORT1_VECTOR
-__interrupt void PORT1_ISR(void)
-{  	
+/*
+ * \brief Function called when the Start bit of a RX'd char is detected.
+ *
+ * You may want to call this function as irq handler for RXD falling edge.
+ * \param
+ * \return 
+ *
+ *
+ */
+void start_UART_rx(void)
+{
+  //Start of RX
   UART_mode = UART_RECEIVING;
   
   ACT_LED = 1;
@@ -167,10 +173,9 @@ __interrupt void PORT1_ISR(void)
   CCTL0 = CCIE;         	// Dissable TX and enable interrupts
   
   UART_rx_char = 0;		// Initialize UART_rx_char
-  UART_bits_ctr = 9;		// Load Bit counter, 8 bits + STOP
-  
-  
+  UART_bits_ctr = 9;		// Load Bit counter, 8 bits + STOP    
 }
+
 
 /*----------------------------------------------------------------------------*/
 // Timer A0 interrupt service routine
