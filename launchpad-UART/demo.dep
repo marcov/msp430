@@ -6,52 +6,48 @@
   <configuration>
     <name>Debug</name>
     <outputs>
-      <file>$TOOLKIT_DIR$\inc\io430.h</file>
-      <file>$PROJ_DIR$\main.c</file>
-      <file>$TOOLKIT_DIR$\inc\io430G2231.h</file>
-      <file>$PROJ_DIR$\Debug\Obj\demo.pbd</file>
-      <file>$TOOLKIT_DIR$\inc\in430.h</file>
-      <file>$PROJ_DIR$\sources\UART.c</file>
-      <file>$PROJ_DIR$\Debug\Obj\main.pbi</file>
-      <file>$PROJ_DIR$\Debug\Obj\main.r43</file>
-      <file>$PROJ_DIR$\Debug\Obj\UART.pbi</file>
-      <file>$PROJ_DIR$\sources\board_support.h</file>
-      <file>$TOOLKIT_DIR$\config\lnk430G2231.xcl</file>
+      <file>$PROJ_DIR$\Debug\Exe\demo.d43</file>
+      <file>$TOOLKIT_DIR$\inc\intrinsics.h</file>
       <file>$PROJ_DIR$\sources\UART.h</file>
       <file>$TOOLKIT_DIR$\lib\dlib\dl430fn.r43</file>
-      <file>$PROJ_DIR$\sources\main.c</file>
+      <file>$TOOLKIT_DIR$\config\lnk430G2231.xcl</file>
+      <file>$PROJ_DIR$\Debug\Obj\demo.pbd</file>
+      <file>$PROJ_DIR$\Debug\Obj\UART.pbi</file>
+      <file>$PROJ_DIR$\sources\UART.c</file>
+      <file>$PROJ_DIR$\sources\board_support.h</file>
       <file>$PROJ_DIR$\Debug\Obj\UART.r43</file>
-      <file>$TOOLKIT_DIR$\inc\intrinsics.h</file>
-      <file>$PROJ_DIR$\Debug\Exe\demo.d43</file>
+      <file>$TOOLKIT_DIR$\inc\io430G2231.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\main.r43</file>
+      <file>$PROJ_DIR$\main.c</file>
+      <file>$TOOLKIT_DIR$\inc\io430.h</file>
+      <file>$PROJ_DIR$\sources\main.c</file>
+      <file>$PROJ_DIR$\Debug\Obj\main.pbi</file>
+      <file>$TOOLKIT_DIR$\inc\in430.h</file>
     </outputs>
     <file>
       <name>[ROOT_NODE]</name>
       <outputs>
         <tool>
           <name>XLINK</name>
-          <file> 16</file>
+          <file> 0</file>
         </tool>
       </outputs>
     </file>
     <file>
-      <name>$PROJ_DIR$\main.c</name>
-      <outputs>
+      <name>$PROJ_DIR$\Debug\Exe\demo.d43</name>
+      <inputs>
         <tool>
-          <name>BICOMP</name>
-          <file> 6</file>
+          <name>XLINK</name>
+          <file> 4 9 11 3</file>
         </tool>
-        <tool>
-          <name>ICC430</name>
-          <file> 7</file>
-        </tool>
-      </outputs>
+      </inputs>
     </file>
     <file>
       <name>$PROJ_DIR$\Debug\Obj\demo.pbd</name>
       <inputs>
         <tool>
           <name>BILINK</name>
-          <file> 8 6</file>
+          <file> 6 15</file>
         </tool>
       </inputs>
     </file>
@@ -59,54 +55,58 @@
       <name>$PROJ_DIR$\sources\UART.c</name>
       <outputs>
         <tool>
-          <name>BICOMP</name>
-          <file> 8</file>
+          <name>ICC430</name>
+          <file> 9</file>
         </tool>
         <tool>
-          <name>ICC430</name>
-          <file> 14</file>
+          <name>BICOMP</name>
+          <file> 6</file>
         </tool>
       </outputs>
       <inputs>
         <tool>
-          <name>BICOMP</name>
-          <file> 11 9</file>
+          <name>ICC430</name>
+          <file> 13 10 16 1 2 8</file>
         </tool>
         <tool>
-          <name>ICC430</name>
-          <file> 0 2 4 15 11 9</file>
+          <name>BICOMP</name>
+          <file> 2 8</file>
         </tool>
       </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\main.c</name>
+      <outputs>
+        <tool>
+          <name>ICC430</name>
+          <file> 11</file>
+        </tool>
+        <tool>
+          <name>BICOMP</name>
+          <file> 15</file>
+        </tool>
+      </outputs>
     </file>
     <file>
       <name>$PROJ_DIR$\sources\main.c</name>
       <outputs>
         <tool>
-          <name>BICOMP</name>
-          <file> 6</file>
+          <name>ICC430</name>
+          <file> 11</file>
         </tool>
         <tool>
-          <name>ICC430</name>
-          <file> 7</file>
+          <name>BICOMP</name>
+          <file> 15</file>
         </tool>
       </outputs>
       <inputs>
         <tool>
-          <name>BICOMP</name>
-          <file> 11 9</file>
-        </tool>
-        <tool>
           <name>ICC430</name>
-          <file> 0 2 4 15 11 9</file>
+          <file> 13 10 16 1 2 8</file>
         </tool>
-      </inputs>
-    </file>
-    <file>
-      <name>$PROJ_DIR$\Debug\Exe\demo.d43</name>
-      <inputs>
         <tool>
-          <name>XLINK</name>
-          <file> 10 14 7 12</file>
+          <name>BICOMP</name>
+          <file> 2 8</file>
         </tool>
       </inputs>
     </file>
