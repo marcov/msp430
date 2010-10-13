@@ -114,7 +114,6 @@ void UART_tx_string (char * str)
 {
   while ( *str != '\0' ) {
     start_UART_tx_char(*str);
-   
     __low_power_mode_0(); //go to low power until tx has finished, but keep SMCLK on.
     str++;
   }
@@ -178,10 +177,10 @@ void start_UART_rx(void)
 
 
 /*----------------------------------------------------------------------------*/
-// Timer A0 interrupt service routine
+// Timer A CCR0 interrupt service routine
 #pragma vector=TIMERA0_VECTOR
 __interrupt void TimerA0_ISR (void)
-{
+{                        
   if(UART_mode == UART_TRANSMITTING) {
     CCR0 += ONE_BIT_TIME;			// Add Offset to CCR0  
     
