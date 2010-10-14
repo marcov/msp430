@@ -76,7 +76,7 @@ void initUART(void)
   P1IFG &= ~RXD;			// Clear RXD (flag) before enabling interrupt
   P1IE |= RXD;				// Enable RXD interrupt
  
-  TACTL = TASSEL_2;
+  TACTL = TASSEL_2;                    // TimerA clock source is SMCLK.
   
   UART_mode = UART_IDLE;
 }
