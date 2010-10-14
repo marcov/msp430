@@ -151,9 +151,11 @@ static void start_UART_tx_char(char chr)
   
   P1SEL |= TXD;
   
+  
   TACCTL0 = OUTMOD_5;                // will set output low for start bit.    
   
-  TACCR0 = TAR;
+  TACCR0 = TAR+HALF_BIT_TIME;   //Delay the start bit of a little time.
+  
   TACCTL0 |= CCIE;          // Interrupt should fire immediately.
   
   ACT_LED = 1;
