@@ -1777,6 +1777,12 @@
   </file>
   <file>
     <name>$PROJ_DIR$\sources\UART.c</name>
+    <excluded>
+      <configuration>Debug</configuration>
+    </excluded>
+  </file>
+  <file>
+    <name>$PROJ_DIR$\sources\UART_CC.c</name>
   </file>
 </project>
 

@@ -1,14 +1,14 @@
 /******************************************************************************
  * Half Duplex Software UART on the LaunchPad
- * This implementation drives TXD as GPIO, so accuracy may not be optimal.
- * An alternative implementation could use the Capture/Compare functionality.
- *
+ * This implementation drives TXD as Capture/Compare, accuracy should be higher
+ * than the GPIO version at high bitrates.
  ******************************************************************************
+ *
  * Description: UART Library.
  * Author: Marco Vedovati
+ *
  ******************************************************************************
- * Original implementation from:
- * Author: Nicholas J. Conn - http://msp430launchpad.com
+ * Original implementation from: Nicholas J. Conn - http://msp430launchpad.com
  ******************************************************************************/
 #include <io430.h>
 #include <in430.h>
@@ -24,15 +24,27 @@
  *
  */
 
+// This is the CPU frequency. Pay attention because it drift with Temperature and Vcc changes.
+//#define CURR_CPU_FREQ           976000uL
+#define CURR_CPU_FREQ           1000000uL
+#define BAUDRATE                9600
+
+//Do a more precise rounding.
+#define ONE_BIT_TIME    ( ( (CURR_CPU_FREQ*10 / BAUDRATE) + 5) / 10)
+#define HALF_BIT_TIME   ( ( (CURR_CPU_FREQ*10 / BAUDRATE) + 5) / 20)
+
+/*
 //Baudrate = SMCLK freq(1MHz) / Baudrate
 // Seems like max speed working on the Launchpad board is 9600 bauds...
 #define BAUDRATE_1200    	833
 #define BAUDRATE_2400    	417
 #define BAUDRATE_4800    	208
-#define BAUDRATE_9600    	104		
+#define BAUDRATE_9600    	104
+#define BAUDRATE_19200    	52
 
 #define ONE_BIT_TIME      BAUDRATE_9600
 #define HALF_BIT_TIME   (ONE_BIT_TIME / 2)
+*/
 
 /*----------------------------------------------------------------------------*/
 
@@ -179,8 +191,8 @@ void start_UART_rx(void)
   ACT_LED = 1;
   
   TACCTL1 &= ~(CCIE+CM_3);
-  CCR0 = CCR1 + HALF_BIT_TIME ;
-  CCTL0 = OUT + CCIE;   // Setting out is necessary to keep the TX Line high.      	  
+  TACCR0 = CCR1 + HALF_BIT_TIME;
+  TACCTL0 = OUT + CCIE;   // Setting out is necessary to keep the TX Line high.      	  
   
   UART_rx_char = 0x00;		  // Initialize UART_rx_char
   UART_bits_ctr = 10;		  // Load Bit counter, 8 bits + STOP    
@@ -191,9 +203,8 @@ void start_UART_rx(void)
 // Timer A CCR0 interrupt service routine
 #pragma vector=TIMERA0_VECTOR
 __interrupt void TimerA0_ISR (void)
-{                        
+{
   if(UART_mode == UART_TRANSMITTING) {
-     
     if ( UART_bits_ctr == 0) {		
       // If all bits TXed
       UART_mode = UART_IDLE;
@@ -205,9 +216,8 @@ __interrupt void TimerA0_ISR (void)
       ACT_LED =0;
     }
     else {
+      TACCR0 += ONE_BIT_TIME;		// Add Offset to CCR0.
       // Still transmitting
-      CCR0 += ONE_BIT_TIME;			// Add Offset to CCR0 
-      
       if (UART_tx_char & 0x01) {
         //P1OUT |= TXD;
         TACCTL0 &= ~OUTMOD_4;
@@ -240,7 +250,7 @@ __interrupt void TimerA0_ISR (void)
       __low_power_mode_off_on_exit();
     }
     else {
-      TACCR0 += ONE_BIT_TIME;		// Add Offset to CCR0
+      TACCR0 += ONE_BIT_TIME;		// Add Offset to CCR0.
       if ( (P1IN & RXD) == RXD) {		
         // If bit is set?
         UART_rx_char |= 0x400;		// Set the value in the UART_rx_char

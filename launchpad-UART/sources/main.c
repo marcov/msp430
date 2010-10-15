@@ -23,6 +23,9 @@ void main( void )
   init_clock();
   initUART();
   
+  P1SEL |= BIT4;    //Enable SMCLK out
+  P1DIR |= BIT4;
+  
   // Set pin of push button as input with interrupt capability on rising edge.
   P1SEL &= ~PUSH_BUTTON_PIN;
   P1DIR &= ~PUSH_BUTTON_PIN;
