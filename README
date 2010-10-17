@@ -1,1 +1,5 @@
 This repository contains various code for the MSP430 launchpad.
+
+GIT SSH Access: git@github.com:marcov/msp430.git
+GIT HTTP Access: https://marcov@github.com/marcov/msp430.git
+GIT Read-only Access: git://github.com/marcov/msp430.git
