@@ -127,6 +127,28 @@ void UART_echo_mode(void)
 
 /*----------------------------------------------------------------------------*/
 /*
+ * \brief Returns a character from UART.
+ *
+ * This is a blocking function: it waits for a character 
+ * from UART (if not already received).
+ *
+ * \param
+ * \return the character receved from UART
+ *
+ *
+ */
+unsigned char UART_get_char(void)
+{
+  while (UART_mode != UART_RECEIVED) {
+    __low_power_mode_0();
+  }
+  
+  UART_mode = UART_IDLE;
+  return UART_rx_char;
+}
+
+/*----------------------------------------------------------------------------*/
+/*
  * \brief Transmits a string over UART.
  * \param str The string to transmit, terminated by a '\0' character.
  * \return 
