@@ -1773,6 +1773,9 @@
     </settings>
   </configuration>
   <file>
+    <name>$PROJ_DIR$\sources\board_support.h</name>
+  </file>
+  <file>
     <name>$PROJ_DIR$\sources\main.c</name>
   </file>
   <file>

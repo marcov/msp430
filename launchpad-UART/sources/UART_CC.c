@@ -24,14 +24,12 @@
  *
  */
 
-// This is the CPU frequency. Pay attention because it drift with Temperature and Vcc changes.
-//#define CURR_CPU_FREQ           976000uL
-#define CURR_CPU_FREQ           1000000uL
+
 #define BAUDRATE                9600
 
 //Do a more precise rounding.
-#define ONE_BIT_TIME    ( ( (CURR_CPU_FREQ*10 / BAUDRATE) + 5) / 10)
-#define HALF_BIT_TIME   ( ( (CURR_CPU_FREQ*10 / BAUDRATE) + 5) / 20)
+#define ONE_BIT_TIME    ( ( (SMCLK_FREQUENCY*10 / BAUDRATE) + 5) / 10)
+#define HALF_BIT_TIME   ( ( (SMCLK_FREQUENCY*10 / BAUDRATE) + 5) / 20)
 
 /*
 //Baudrate = SMCLK freq(1MHz) / Baudrate
@@ -178,7 +176,6 @@ static void start_UART_tx_char(char chr)
   
   UART_tx_char = chr;	                // Load the recieved byte into the byte to be transmitted
   UART_tx_char |= 0x100;                // Add stop bit to UART_tx_char (which is logical 1)
-  //UART_tx_char <<= 1;	                // Add start bit (which is logical 0)  
   UART_bits_ctr = 9;			// Load Bit counter, 8 bits + STOP. We send start now.
   
   UART_mode = UART_TRANSMITTING;
@@ -227,19 +224,9 @@ void start_UART_rx(void)
 __interrupt void TimerA0_ISR (void)
 {
   if(UART_mode == UART_TRANSMITTING) {
-    if ( UART_bits_ctr == 0) {		
-      // If all bits TXed
-      UART_mode = UART_IDLE;
 
-      CCTL0 &= ~CCIE ;		// Disable interrupt
-      P1SEL &= ~TXD;
-      
-      __low_power_mode_off_on_exit();
-      ACT_LED =0;
-    }
-    else {
-      TACCR0 += ONE_BIT_TIME;		// Add Offset to CCR0.
-      // Still transmitting
+    if (UART_bits_ctr > 0) {
+      // Still bits 2 TX
       if (UART_tx_char & 0x01) {
         //P1OUT |= TXD;
         TACCTL0 &= ~OUTMOD_4;
@@ -248,19 +235,38 @@ __interrupt void TimerA0_ISR (void)
         //P1OUT &= ~TXD;
         TACCTL0 |= OUTMOD_5;
       }
+      
+      TACCR0 += ONE_BIT_TIME;		// Add Offset to CCR0. 
       UART_tx_char >>= 1;
       UART_bits_ctr--;
+    } else {	
+       // If all bits TXed
+      CCTL0 &= ~CCIE ;		// Disable interrupt
+      P1SEL &= ~TXD;
+ 
+      UART_mode = UART_IDLE;
+      ACT_LED =0;
+      __low_power_mode_off_on_exit();      
     }
-  } else {
-    // Receiving.
-    if ( UART_bits_ctr == 0) {
+  } if(UART_mode == UART_RECEIVING) {
+
+    if ( (P1IN & RXD) == RXD) {		
+      // If bit is set?
+      UART_rx_char |= 0x0400;		// Set the value in the UART_rx_char
+    }
+    UART_rx_char >>= 1;		        // Shift the bits down
+    UART_bits_ctr --;
+    
+    if (UART_bits_ctr > 0) {
+      TACCR0 += ONE_BIT_TIME;		// Add Offset to CCR0.
+    } else {
       // All byte received.
       TACCTL0 &= ~ CCIE ;		// Disable interrupt for compare
       TACCTL1 |= (CCIE+ CM_2);          // Restore capture capability
       
       if ( (UART_rx_char & 0x201) == 0x200) {
         // Validate the start and stop bits are correct
-      
+        
         UART_rx_char = UART_rx_char >> 1;	// Remove start bit
         UART_rx_char &= 0xFF;			// Remove stop bit
         UART_mode = UART_RECEIVED;
@@ -271,16 +277,8 @@ __interrupt void TimerA0_ISR (void)
       ACT_LED = 0;
       __low_power_mode_off_on_exit();
     }
-    else {
-      TACCR0 += ONE_BIT_TIME;		// Add Offset to CCR0.
-      if ( (P1IN & RXD) == RXD) {		
-        // If bit is set?
-        UART_rx_char |= 0x400;		// Set the value in the UART_rx_char
-      }
-      UART_rx_char >>= 1;		// Shift the bits down
-      UART_bits_ctr --;
-    }
   }
+  
 }
 
 

@@ -1,4 +1,9 @@
+#ifndef __BOARD_SUPPORT_H__
+#define __BOARD_SUPPORT_H__
 
+// This is the SMCLK frequency. Pay attention because it drift with Temperature and Vcc changes.
+//#define SMCLK_FREQUENCY           980000uL
+#define SMCLK_FREQUENCY           1000000uL
 
 //Pinout definition.
 // PORT 1
@@ -9,3 +14,7 @@
 
 //Faster access to pin
 #define ACT_LED     P1OUT_bit.P1OUT_0       
+
+
+
+#endif //__BOARD_SUPPORT_H__
