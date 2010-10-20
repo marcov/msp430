@@ -1,1 +1,3 @@
 This folder contains libraries implemented specifically for the MSP430 Launchpad development board.
+
+All source code provided has been tested on the MSP430G2231 and compiled/tested  on the IAR Embedded Workbench IDE.
