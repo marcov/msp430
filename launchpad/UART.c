@@ -3,6 +3,10 @@
  * This implementation drives TXD as by using Timer Compare and set RXD sampling 
  * by using the Timer Capture, hence accuracy should be higher than GPIO verison.
  *
+ * You must supply a valid board_support.h file with:
+ * - definition of TXD and RXD pins (bound to CCR module assignment).
+ * - definition of your SMCLK_FREQUENCY (Timer is sourced from SMCLK).
+ * 
  *
  *  UART Basics
  *  TX and RX transmit order:
@@ -23,9 +27,12 @@
 #include <io430.h>
 #include <in430.h>
 #include "UART.h"             //Here the definition of UART baudrate.
-#include "board_support.h"    //Here the definition of pinout.
+#include "board_support.h"
+                              
 
 //TODO: Add ring buffer.
+//      Port to Full Duplex.
+//      For half duplex a single CCR module should be enough.
 
 
 //Do a more precise rounding by using the ((..)*10 +5) /10 trick.
@@ -76,10 +83,9 @@ void initUART(void)
   P1SEL |= RXD;
   P1DIR &= ~RXD;
   
-  //CM = 2 : Capture on falling edge
+  // CM = 2 : Capture on falling edge
   // CCIS = 0 : Capture input select input signal A
   // CAP : Capture mode
-  //TACCTL1 = CM_2 + CCIS_1 + CAP;
   TACCTL1 = CM_2 + CCIS_0 + CAP;
 
   // TASSEL = 2 : Clock source SMCLK
@@ -167,17 +173,12 @@ static void start_UART_tx_char(char chr)
   UART_tx_char |= 0x100;                // Add stop bit to UART_tx_char (which is logical 1)
   UART_bits_ctr = 9;			// Load Bit counter, 8 bits + STOP. We send start now.
   
-  UART_mode = UART_TRANSMITTING;
-  
   P1SEL |= TXD;
-  
-  
-  TACCTL0 = OUTMOD_5;                // will set output low for start bit.    
-  
-  TACCR0 = TAR+HALF_BIT_TIME;   //Delay the start bit of a little time.
-  
-  TACCTL0 |= CCIE;          // Interrupt should fire immediately.
-  
+  TACCTL0 = OUTMOD_5;                   // will set output low for start bit.    
+  TACCR0 = TAR+HALF_BIT_TIME;           //Delay the start bit of a little time.
+  TACCTL0 |= CCIE;                      // Interrupt should fire immediately.
+
+  UART_mode = UART_TRANSMITTING;  
   ACT_LED = 1;
 }
 
