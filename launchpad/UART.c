@@ -2,6 +2,15 @@
  * Half Duplex Software UART on the LaunchPad
  * This implementation drives TXD as Capture/Compare, accuracy should be higher
  * than the GPIO version at high bitrates.
+ *
+ *  UART Basics
+ *  TX and RX transmit order:
+ *
+ *   (1st bit)                     (last bit)
+ *   +-------+-------+-----+-------+-------+
+ *   | Start | 0 LSb | ... | 7 MSb | Stop  |
+ *   +-------+-------+-----+-------+-------+
+ *
  ******************************************************************************
  *
  * Description: UART Library.
@@ -12,37 +21,14 @@
  ******************************************************************************/
 #include <io430.h>
 #include <in430.h>
-#include "UART.h"
-#include "board_support.h"
-/* 
- *  TX and RX transmit order:
- *
- *   (1st bit)                     (last bit)
- *   +-------+-------+-----+-------+-------+
- *   | Start | 0 LSb | ... | 7 MSb | Stop  |
- *   +-------+-------+-----+-------+-------+
- *
- */
+#include "UART.h"             //Here the definition of UART baudrate.
+#include "board_support.h"    //Here the definition of pinout.
 
-
-#define BAUDRATE                9600
 
 //Do a more precise rounding.
 #define ONE_BIT_TIME    ( ( (SMCLK_FREQUENCY*10 / BAUDRATE) + 5) / 10)
 #define HALF_BIT_TIME   ( ( (SMCLK_FREQUENCY*10 / BAUDRATE) + 5) / 20)
 
-/*
-//Baudrate = SMCLK freq(1MHz) / Baudrate
-// Seems like max speed working on the Launchpad board is 9600 bauds...
-#define BAUDRATE_1200    	833
-#define BAUDRATE_2400    	417
-#define BAUDRATE_4800    	208
-#define BAUDRATE_9600    	104
-#define BAUDRATE_19200    	52
-
-#define ONE_BIT_TIME      BAUDRATE_9600
-#define HALF_BIT_TIME   (ONE_BIT_TIME / 2)
-*/
 
 /*----------------------------------------------------------------------------*/
 
