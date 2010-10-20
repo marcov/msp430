@@ -44,7 +44,7 @@
       <inputs>
         <tool>
           <name>XLINK</name>
-          <file> 2 22 6 18</file>
+          <file> 2 1 6 18</file>
         </tool>
       </inputs>
     </file>
@@ -131,7 +131,7 @@
       <inputs>
         <tool>
           <name>BILINK</name>
-          <file> 4 20 5</file>
+          <file> 4 5</file>
         </tool>
       </inputs>
     </file>
@@ -158,10 +158,6 @@
         </tool>
       </inputs>
     </file>
-    <forcedrebuild>
-      <name>[MULTI_TOOL]</name>
-      <tool>XLINK</tool>
-    </forcedrebuild>
   </configuration>
   <configuration>
     <name>Release</name>
