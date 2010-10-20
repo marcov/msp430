@@ -1,7 +1,8 @@
 /******************************************************************************
  * Half Duplex Software UART on the LaunchPad
- * This implementation drives TXD as Capture/Compare, accuracy should be higher
- * than the GPIO version at high bitrates.
+ * This implementation drives TXD as by using Timer Compare and set RXD sampling 
+ * by using the Timer Capture, hence accuracy should be higher than GPIO verison.
+ *
  *
  *  UART Basics
  *  TX and RX transmit order:
@@ -11,12 +12,12 @@
  *   | Start | 0 LSb | ... | 7 MSb | Stop  |
  *   +-------+-------+-----+-------+-------+
  *
- ******************************************************************************
+ *----------------------------------
  *
- * Description: UART Library.
+ * Module Description: UART Library.
  * Author: Marco Vedovati
  *
- ******************************************************************************
+ *------------------------------------------------------------------------------
  * Original implementation from: Nicholas J. Conn - http://msp430launchpad.com
  ******************************************************************************/
 #include <io430.h>
@@ -24,8 +25,10 @@
 #include "UART.h"             //Here the definition of UART baudrate.
 #include "board_support.h"    //Here the definition of pinout.
 
+//TODO: Add ring buffer.
 
-//Do a more precise rounding.
+
+//Do a more precise rounding by using the ((..)*10 +5) /10 trick.
 #define ONE_BIT_TIME    ( ( (SMCLK_FREQUENCY*10 / BAUDRATE) + 5) / 10)
 #define HALF_BIT_TIME   ( ( (SMCLK_FREQUENCY*10 / BAUDRATE) + 5) / 20)
 
