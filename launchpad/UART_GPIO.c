@@ -1,14 +1,14 @@
 /******************************************************************************
  * Half Duplex Software UART on the LaunchPad
- * This implementation drives TXD as Capture/Compare, accuracy should be higher
- * than the GPIO version at high bitrates.
- ******************************************************************************
+ * This implementation drives TXD as GPIO, so accuracy may not be optimal.
+ * An alternative implementation could use the Capture/Compare functionality.
  *
+ ******************************************************************************
  * Description: UART Library.
  * Author: Marco Vedovati
- *
  ******************************************************************************
- * Original implementation from: Nicholas J. Conn - http://msp430launchpad.com
+ * Original implementation from:
+ * Author: Nicholas J. Conn - http://msp430launchpad.com
  ******************************************************************************/
 #include <io430.h>
 #include <in430.h>
@@ -24,25 +24,15 @@
  *
  */
 
-
-#define BAUDRATE                9600
-
-//Do a more precise rounding.
-#define ONE_BIT_TIME    ( ( (SMCLK_FREQUENCY*10 / BAUDRATE) + 5) / 10)
-#define HALF_BIT_TIME   ( ( (SMCLK_FREQUENCY*10 / BAUDRATE) + 5) / 20)
-
-/*
 //Baudrate = SMCLK freq(1MHz) / Baudrate
 // Seems like max speed working on the Launchpad board is 9600 bauds...
 #define BAUDRATE_1200    	833
 #define BAUDRATE_2400    	417
 #define BAUDRATE_4800    	208
-#define BAUDRATE_9600    	104
-#define BAUDRATE_19200    	52
+#define BAUDRATE_9600    	104		
 
 #define ONE_BIT_TIME      BAUDRATE_9600
 #define HALF_BIT_TIME   (ONE_BIT_TIME / 2)
-*/
 
 /*----------------------------------------------------------------------------*/
 
@@ -78,26 +68,15 @@ static void start_UART_tx_char(char chr);
  */
 void initUART(void)
 {
-  //P1SEL |= TXD;     // For compare mode.
+  P1SEL &= ~(TXD+BIT0);
   P1OUT |= TXD;     // Set TX as idle high.
   P1DIR |= (TXD+BIT0);
   
-  //RXD Pin
-  P1OUT |= RXD;
-  P1SEL |= RXD;
-  P1DIR &= ~RXD;
-  
-  //CM = 2 : Capture on falling edge
-  // CCIS = 0 : Capture input select input signal A
-  // CAP : Capture mode
-  //TACCTL1 = CM_2 + CCIS_1 + CAP;
-  TACCTL1 = CM_2 + CCIS_0 + CAP;
-
-  // TASSEL = 2 : Clock source SMCLK
-  // MC = 2 : Start timer in continuous mode.
-  TACTL = TASSEL_2 + MC_2;
-  
-  TACCTL1 |= CCIE;  //Enable interrupt;
+  P1IES |= RXD;				// RXD Hi/lo edge interrupt
+  P1IFG &= ~RXD;			// Clear RXD (flag) before enabling interrupt
+  P1IE |= RXD;				// Enable RXD interrupt
+ 
+  TACTL = TASSEL_2;                    // TimerA clock source is SMCLK.
   
   UART_mode = UART_IDLE;
 }
@@ -121,28 +100,6 @@ void UART_echo_mode(void)
     // LPM0, the PORT1 interrupt will wake the processor up. This is so that it does not
     //	endlessly loop when no value has been Received.
   }
-}
-
-/*----------------------------------------------------------------------------*/
-/*
- * \brief Returns a character from UART.
- *
- * This is a blocking function: it waits for a character 
- * from UART (if not already received).
- *
- * \param
- * \return the character receved from UART
- *
- *
- */
-unsigned char UART_get_char(void)
-{
-  while (UART_mode != UART_RECEIVED) {
-    __low_power_mode_0();
-  }
-  
-  UART_mode = UART_IDLE;
-  return UART_rx_char;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -176,18 +133,14 @@ static void start_UART_tx_char(char chr)
   
   UART_tx_char = chr;	                // Load the recieved byte into the byte to be transmitted
   UART_tx_char |= 0x100;                // Add stop bit to UART_tx_char (which is logical 1)
-  UART_bits_ctr = 9;			// Load Bit counter, 8 bits + STOP. We send start now.
+  UART_tx_char <<= 1;	                // Add start bit (which is logical 0)  
+  UART_bits_ctr = 10;			// Load Bit counter, 8 bits + STOP. We send start now.
   
   UART_mode = UART_TRANSMITTING;
   
-  P1SEL |= TXD;
-  
-  
-  TACCTL0 = OUTMOD_5;                // will set output low for start bit.    
-  
-  TACCR0 = TAR+HALF_BIT_TIME;   //Delay the start bit of a little time.
-  
-  TACCTL0 |= CCIE;          // Interrupt should fire immediately.
+  TACTL |= MC_2;		        // Start TIMER continuous mode
+  CCR0 = (TAR);			        // Initialize compare register
+  CCTL0 = CCIE+CCIFG;
   
   ACT_LED = 1;
 }
@@ -207,14 +160,19 @@ void start_UART_rx(void)
 {
   //Start of RX
   UART_mode = UART_RECEIVING;
+  
   ACT_LED = 1;
   
-  TACCTL1 &= ~(CCIE+CM_3);
-  TACCR0 = CCR1 + HALF_BIT_TIME;
-  TACCTL0 = OUT + CCIE;   // Setting out is necessary to keep the TX Line high.      	  
+  P1IE &= ~RXD;			// Disable RXD interrupt
+  P1IFG &= ~RXD;		// Clear RXD IFG (interrupt flag)
   
-  UART_rx_char = 0x00;		  // Initialize UART_rx_char
-  UART_bits_ctr = 10;		  // Load Bit counter, 8 bits + STOP    
+  TACTL |= MC_2;		        // Start TIMER continuous mode 
+  CCR0 = TAR;			// Initialize compare register
+  CCR0 += HALF_BIT_TIME;	// Latch bit at half of the bit time.
+  CCTL0 = CCIE;         	// Dissable TX and enable interrupts
+  
+  UART_rx_char = 0;		// Initialize UART_rx_char
+  UART_bits_ctr = 9;		// Load Bit counter, 8 bits + STOP    
 }
 
 
@@ -222,51 +180,41 @@ void start_UART_rx(void)
 // Timer A CCR0 interrupt service routine
 #pragma vector=TIMERA0_VECTOR
 __interrupt void TimerA0_ISR (void)
-{
+{                        
   if(UART_mode == UART_TRANSMITTING) {
-
-    if (UART_bits_ctr > 0) {
-      // Still bits 2 TX
+    CCR0 += ONE_BIT_TIME;			// Add Offset to CCR0  
+    
+    if ( UART_bits_ctr == 0) {		
+      // If all bits TXed
+      UART_mode = UART_IDLE;
+      
+      TACTL_bit.TAMC &= 0;	// timer off (for power consumption)
+      CCTL0 &= ~ CCIE ;		// Disable interrupt
+      __low_power_mode_off_on_exit();
+      ACT_LED =0;
+    }
+    else {
       if (UART_tx_char & 0x01) {
-        //P1OUT |= TXD;
-        TACCTL0 &= ~OUTMOD_4;
+        P1OUT |= TXD;
       }
       else {
-        //P1OUT &= ~TXD;
-        TACCTL0 |= OUTMOD_5;
+        P1OUT &= ~TXD;
       }
-      
-      TACCR0 += ONE_BIT_TIME;		// Add Offset to CCR0. 
       UART_tx_char >>= 1;
       UART_bits_ctr--;
-    } else {	
-       // If all bits TXed
-      CCTL0 &= ~CCIE ;		// Disable interrupt
-      P1SEL &= ~TXD;
- 
-      UART_mode = UART_IDLE;
-      ACT_LED =0;
-      __low_power_mode_off_on_exit();      
     }
-  } if(UART_mode == UART_RECEIVING) {
-
-    if ( (P1IN & RXD) == RXD) {		
-      // If bit is set?
-      UART_rx_char |= 0x0400;		// Set the value in the UART_rx_char
-    }
-    UART_rx_char >>= 1;		        // Shift the bits down
-    UART_bits_ctr --;
-    
-    if (UART_bits_ctr > 0) {
-      TACCR0 += ONE_BIT_TIME;		// Add Offset to CCR0.
-    } else {
-      // All byte received.
-      TACCTL0 &= ~ CCIE ;		// Disable interrupt for compare
-      TACCTL1 |= (CCIE+ CM_2);          // Restore capture capability
+  } else {
+    CCR0 += ONE_BIT_TIME;				// Add Offset to CCR0  
+    if ( UART_bits_ctr == 0) {
+      TACTL_bit.TAMC &= 0;	// timer off (for power consumption)
+      CCTL0 &= ~ CCIE ;			// Disable interrupt
+      
+      P1IFG &= ~RXD;				// clear RXD IFG (interrupt flag)
+      P1IE |= RXD;				// enabled RXD interrupt
       
       if ( (UART_rx_char & 0x201) == 0x200) {
         // Validate the start and stop bits are correct
-        
+      
         UART_rx_char = UART_rx_char >> 1;	// Remove start bit
         UART_rx_char &= 0xFF;			// Remove stop bit
         UART_mode = UART_RECEIVED;
@@ -277,20 +225,13 @@ __interrupt void TimerA0_ISR (void)
       ACT_LED = 0;
       __low_power_mode_off_on_exit();
     }
+    else {
+      if ( (P1IN & RXD) == RXD) {		
+        // If bit is set?
+        UART_rx_char |= 0x400;		// Set the value in the UART_rx_char
+      }
+      UART_rx_char >>= 1;		// Shift the bits down
+      UART_bits_ctr --;
+    }
   }
-  
-}
-
-
-
-/*----------------------------------------------------------------------------*/
-// Timer A CCR1 interrupt service routine
-#pragma vector=TIMERA1_VECTOR
-__interrupt void TimerA1_ISR (void)
-{
-  TACCTL1 &= ~CCIFG;
-  // So, we have detected a start bit falling edge. We need to sample it again
-  // in HALF_BIT_TIME, this time using compare register.
-  start_UART_rx();
-  __no_operation();
 }
