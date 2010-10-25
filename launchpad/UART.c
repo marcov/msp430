@@ -1,14 +1,33 @@
 /******************************************************************************
- * Half Duplex Software UART on the LaunchPad
- * This implementation drives TXD as by using Timer Compare and set RXD sampling 
- * by using the Timer Capture, hence accuracy should be higher than GPIO verison.
+ * Module Description: UART Library.
+ * Author: Marco Vedovati
+ * Email : msp430@vedovati.info
+ * Tested compiler: IAR EW MSP430 5.10.6
  *
- * You must supply a valid board_support.h file with:
- * - definition of TXD and RXD pins (bound to CCR module assignment).
- * - definition of your SMCLK_FREQUENCY (Timer is sourced from SMCLK).
- * 
+ * Description:
+ * Half Duplex software-UART for the  MSP430 LaunchPad.
+ * This implementation employs both Timer A CC modules:
+ * - TXD make use of CCR0 compare mode only;
+ * - RXD sample the start bit using CCR1 capture mode, and reads the following
+ *   bits using the CCR1 compare mode.
+ * By using capture/compare timing accuracy should be higher than reading/setting 
+ * pins as GPIO.
  *
- *  UART Basics
+ * In order to use this library, you must supply a valid board_support.h file with:
+ * - definition of TXD and RXD pins: they are bound to CCR0-1 location, as 
+ *   described earlier. Hint: CCRx are remapped on more pins, see datasheet.
+ * - definition of your SMCLK_FREQUENCY in Hz(Timer is sourced from SMCLK).
+ * E.g.:
+ *
+ * #define TXD             BIT1                // TXD on P1.1
+ * #define RXD             BIT2                // RXD on P1.2
+ * #define SMCLK_FREQUENCY 1000000
+ *
+ *------------------------------------------------------------------------------
+ * Original implementation from: Nicholas J. Conn - http://msp430launchpad.com
+ ******************************************************************************/
+/*----------------------------------
+ *  UART Basic theory
  *  TX and RX transmit order:
  *
  *   (1st bit)                     (last bit)
@@ -16,23 +35,16 @@
  *   | Start | 0 LSb | ... | 7 MSb | Stop  |
  *   +-------+-------+-----+-------+-------+
  *
- *----------------------------------
- *
- * Module Description: UART Library.
- * Author: Marco Vedovati
- *
- *------------------------------------------------------------------------------
- * Original implementation from: Nicholas J. Conn - http://msp430launchpad.com
- ******************************************************************************/
+ ----------------------------------*/
 #include <io430.h>
 #include <in430.h>
 #include "UART.h"             //Here the definition of UART baudrate.
 #include "board_support.h"
                               
 
-//TODO: Add ring buffer.
+//TODO: Add a ring buffer (now it is just a useless stack-type buffer).
 //      Port to Full Duplex.
-//      For half duplex a single CCR module should be enough.
+//      For half duplex a single CCR module may be enough.
 
 
 //Do a more precise rounding by using the ((..)*10 +5) /10 trick.
