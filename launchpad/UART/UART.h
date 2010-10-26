@@ -39,6 +39,8 @@
 #else
 
 #define SETUP_UART_LEDS()
+#define LED_TX
+#define LED_RX
 
 #endif
 
