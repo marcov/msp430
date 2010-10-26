@@ -24,6 +24,7 @@
  * #define RXD             BIT2                // RXD on P1.2
  * #define SMCLK_FREQUENCY 1000000
  *
+ * UART baudrate and LEDs signaling for TX/RX can be set in UART.h
  *------------------------------------------------------------------------------
  * Original implementation from: Nicholas J. Conn - http://msp430launchpad.com
  ******************************************************************************/

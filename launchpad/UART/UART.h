@@ -1,17 +1,17 @@
 #ifndef __UART_H__
 #define __UART_H__
 
+// Set the baudrate here:
 #define BAUDRATE        9600
+
+//Set this to 1 to have LEDs visual feedback for TX and RX activity.
 #define USE_LEDS_TXRX   1
 
+
+/*----------------------------------------------------------------------------*/
+// Don't edit below this.
+
 #if USE_LEDS_TXRX
-
-
-#define LED_TX_OUT  0
-#define LED_RX_PIN  6
-#define LEDS_PORT   1
-
-
 /*
 #define LED_TX_PIN  0
 #define LED_RX_PIN  6
