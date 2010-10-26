@@ -1,21 +1,22 @@
 /******************************************************************************
- * Module Description: UART Library.
- * Author: Marco Vedovati
- * Email : msp430@vedovati.info
- * Tested compiler: IAR EW MSP430 5.10.6
+ * UART Library for the MSP430 Launchpad
+ *
+ * Author:   Marco Vedovati
+ * Email :   msp430@vedovati.info
+ * Compiler: IAR EW MSP430 5.10.6
  *
  * Description:
- * Half Duplex software-UART for the  MSP430 LaunchPad.
- * This implementation employs both Timer A CC modules:
- * - TXD make use of CCR0 compare mode only;
- * - RXD sample the start bit using CCR1 capture mode, and reads the following
- *   bits using the CCR1 compare mode.
- * By using capture/compare timing accuracy should be higher than reading/setting 
- * pins as GPIO.
+ * Half-duplex software-UART for the MSP430 LaunchPad.
+ * This implementation uses two TimerA CC modules:
+ * - TXD uses of TACCR0 module in compare mode only;
+ * - RXD uses TACCR1 in capture mode to sample the START bit and reads
+ *   the following using the compare mode.
+ * Capture/compare are used to obtain a higher accuracy than a GPIO
+ * implementation. 
  *
- * In order to use this library, you must supply a valid board_support.h file with:
- * - definition of TXD and RXD pins: they are bound to CCR0-1 location, as 
- *   described earlier. Hint: CCRx are remapped on more pins, see datasheet.
+ * To use this library, you must supply a valid "board_support.h" file with:
+ * - definition of TXD and RXD pins: they are bound to TACCR0-1 location, as 
+ *   described earlier. Hint: TACCRx are remapped on more pins, see datasheet.
  * - definition of your SMCLK_FREQUENCY in Hz(Timer is sourced from SMCLK).
  * E.g.:
  *
