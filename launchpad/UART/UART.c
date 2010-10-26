@@ -88,6 +88,8 @@ static void start_UART_tx_char(char chr);
  */
 void initUART(void)
 {
+  SETUP_UART_LEDS();
+  
   //TXD Section
   P1DIR |= (TXD);
   P1SEL |= TXD;     //Compare Peripheral. Set OUT of compare module for IDLE HIGH.
@@ -196,7 +198,7 @@ static void start_UART_tx_char(char chr)
                                         // Interrupt should fire immediately.
 
   UART_mode |= UART_TRANSMITTING;
-  ACT_LED = 1;
+  LED_TX = 1;
 }
 
 
@@ -219,7 +221,7 @@ void start_UART_rx(void)
   TACCTL1 &= ~(CM_3+CAP);         // Disable capture mode -> set compare mode.
   
   UART_mode |= UART_RECEIVING;
-  ACT_LED = 1;
+  LED_RX = 1;
 }
 
 
@@ -248,7 +250,7 @@ __interrupt void TimerA0_ISR (void)
       TACCTL0 &= ~CCIE ;		// Disable interrupt
  
       UART_mode &= ~UART_TRANSMITTING;
-      ACT_LED =0;
+      LED_TX =0;
       __low_power_mode_off_on_exit();      
     }
   } 
@@ -294,7 +296,7 @@ __interrupt void TimerA1_ISR (void)
       }
       
       UART_mode &= ~UART_RECEIVING;
-      ACT_LED = 0;
+      LED_RX = 0;
       __low_power_mode_off_on_exit();
     }
   } else {
