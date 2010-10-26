@@ -12,23 +12,27 @@
 // Don't edit below this.
 
 #if USE_LEDS_TXRX
-/*
+
 #define LED_TX_PIN  0
 #define LED_RX_PIN  6
 #define LEDS_PORT   1
-*/
-//Is it possible to substitute numbers below with the definitions above???
 
-#define LED_TX            OUT_BIT(1, 0)
-#define LED_TX_DIR        DIR_BIT(1, 0)
-#define LED_RX            OUT_BIT(1, 6)
-#define LED_RX_DIR        DIR_BIT(1, 6)
-  
+// All this wrapper marcro-functions are needed in order to make Expansion to
+// #defined values above work!
+
+#define LED_TX            LED_OUT(LEDS_PORT, LED_TX_PIN)
+#define LED_TX_DIR        LED_DIR(LEDS_PORT, LED_TX_PIN)
+#define LED_RX            LED_OUT(LEDS_PORT, LED_RX_PIN)
+#define LED_RX_DIR        LED_DIR(LEDS_PORT, LED_RX_PIN)
+
 #define SETUP_UART_LEDS()  \
   LED_TX = 0; \
   LED_RX = 0; \
   LED_TX_DIR = 1; \
   LED_RX_DIR = 1
+
+#define LED_OUT(PORT,PIN)     OUT_BIT(PORT,PIN)
+#define LED_DIR(PORT,PIN)     DIR_BIT(PORT,PIN)
 
 #define DIR_BIT(PORT,PIN)  \
         (P ## PORT ## DIR_bit.P ## PORT ## DIR_ ## PIN)
