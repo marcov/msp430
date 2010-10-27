@@ -183,8 +183,8 @@ unsigned char UART_getch(void)
 #if USE_RX_RINGBUFFER
   retchar = ringbuf_get(&UART_rb);
   while (retchar == -1) {
-    retchar = ringbuf_get(&UART_rb);
     __low_power_mode_0();
+    retchar = ringbuf_get(&UART_rb);
   }
 #else
   while (UART_rx_buffer_idx == 0) {
@@ -304,7 +304,7 @@ __interrupt void TimerA1_ISR (void)
   TACCTL1 &= ~CCIFG;
   if(UART_state & UART_RECEIVING) {
 
-    if ( (P1IN & RXD) == RXD) {		
+    if (P1IN & RXD) {		
       // If bit is set?
       UART_rx_char |= 0x0400;		// Set the value in the UART_rx_char
     }
