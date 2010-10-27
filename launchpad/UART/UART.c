@@ -53,31 +53,25 @@
 #define ONE_BIT_TIME    ( ( (SMCLK_FREQUENCY*10 / BAUDRATE) + 5) / 10)
 #define HALF_BIT_TIME   ( ( (SMCLK_FREQUENCY*10 / BAUDRATE) + 5) / 20)
 
-#define UART_BUFFER_MAX_SIZE  10
+#define UART_BUFFER_MAX_SIZE  16
 /*----------------------------------------------------------------------------*/
 
 typedef enum {
   UART_IDLE         = 0x00,
   UART_RECEIVING    = 0x01,
   UART_TRANSMITTING = 0x02,
-} UART_mode_t;
+} UART_state_t;
 
 /*
  * Variables declaration
  */
-static unsigned char UART_bits_ctr;	// Bit count, used when transmitting byte
-static unsigned short UART_tx_char;	// Value sent over UART when UART_tx_char() is called
-static unsigned short UART_rx_char;	// Value recieved once hasRecieved is set
-static UART_mode_t UART_mode;
+static unsigned char UART_bits_ctr;	// bit counter for the UART RX/TX byte.
+static unsigned short UART_tx_char;	// Value to transmit / in transmission
+static unsigned short UART_rx_char;	// Value received / in reception.
+static UART_state_t UART_state;
 
 static unsigned char UART_buffer[UART_BUFFER_MAX_SIZE];   // This is a stack type UART buffer shared by RX and TX
 static unsigned char UART_buffer_idx = 0; // This is the index for the previous array.
-
-/*----------------------------------------------------------------------------*/
-/*
- * Fxs prototypes
- */
-static void start_UART_tx_char(char chr);
 
 /*----------------------------------------------------------------------------*/
 /*
@@ -113,16 +107,16 @@ void initUART(void)
   // MC = 2 : Start timer in continuous mode.
   TACTL = TASSEL_2 + MC_2;
   
-  UART_mode = UART_IDLE;
+  UART_state = UART_IDLE;
 }
 
 /*----------------------------------------------------------------------------*/
 /*
  * \brief Echo back character received from UART.
+ * You may mostly use this for testing purpose.
+ * 
  * \param
  * \return 
- *
- *
  */
 void UART_echo_mode(void)
 {
@@ -135,7 +129,7 @@ void UART_echo_mode(void)
     tmp_char= UART_buffer[UART_buffer_idx];
     __enable_interrupt();
   
-    start_UART_tx_char(tmp_char);
+    UART_putch(tmp_char);
   }
   
   __low_power_mode_0();
@@ -146,14 +140,14 @@ void UART_echo_mode(void)
  * \brief Returns a character from UART.
  *
  * This is a blocking function: it waits for a character 
- * from UART (if not already received).
+ * from UART if it has not already received.
  *
  * \param
  * \return the character receved from UART
  *
  *
  */
-unsigned char UART_get_char(void)
+unsigned char UART_getch(void)
 {
   while (UART_buffer_idx == 0) {
     __low_power_mode_0();
@@ -170,10 +164,10 @@ unsigned char UART_get_char(void)
  *
  *
  */
-void UART_tx_string (char * str)
+void UART_puts (unsigned char * str)
 {
   while ( *str != '\0' ) {
-    start_UART_tx_char(*str);
+    UART_putch(*str);
     __low_power_mode_0(); //go to low power until tx has finished, but keep SMCLK on.
     str++;
   }
@@ -187,8 +181,10 @@ void UART_tx_string (char * str)
  *
  *
  */
-static void start_UART_tx_char(char chr)
+void UART_putch(unsigned char chr)
 { 
+  while(UART_state & UART_TRANSMITTING); // Wait for the current TX to terminate.
+  
   UART_tx_char = chr;	                // Load the recieved byte into the byte to be transmitted
   UART_tx_char |= 0x100;                // Add stop bit to UART_tx_char (which is logical 1)
   UART_bits_ctr = 9;			// Load Bit counter, 8 bits + STOP. We send start now.
@@ -198,7 +194,7 @@ static void start_UART_tx_char(char chr)
   TACCTL0 |= (OUTMOD_5 + CCIE);         // will set output low for start bit.
                                         // Interrupt should fire immediately.
 
-  UART_mode |= UART_TRANSMITTING;
+  UART_state |= UART_TRANSMITTING;
   LED_TX = 1;
 }
 
@@ -221,7 +217,7 @@ void start_UART_rx(void)
   TACCR1 += HALF_BIT_TIME;     	  // set next compare value.
   TACCTL1 &= ~(CM_3+CAP);         // Disable capture mode -> set compare mode.
   
-  UART_mode |= UART_RECEIVING;
+  UART_state |= UART_RECEIVING;
   LED_RX = 1;
 }
 
@@ -232,7 +228,7 @@ void start_UART_rx(void)
 __interrupt void TimerA0_ISR (void)
 {
   TACCTL0 &= ~CCIFG;
-  if(UART_mode & UART_TRANSMITTING) {
+  if(UART_state & UART_TRANSMITTING) {
 
     if (UART_bits_ctr > 0) {
       // Still bits 2 TX
@@ -250,7 +246,7 @@ __interrupt void TimerA0_ISR (void)
        // If all bits TXed
       TACCTL0 &= ~CCIE ;		// Disable interrupt
  
-      UART_mode &= ~UART_TRANSMITTING;
+      UART_state &= ~UART_TRANSMITTING;
       LED_TX =0;
       __low_power_mode_off_on_exit();      
     }
@@ -265,7 +261,7 @@ __interrupt void TimerA0_ISR (void)
 __interrupt void TimerA1_ISR (void)
 {
   TACCTL1 &= ~CCIFG;
-  if(UART_mode & UART_RECEIVING) {
+  if(UART_state & UART_RECEIVING) {
 
     if ( (P1IN & RXD) == RXD) {		
       // If bit is set?
@@ -296,7 +292,7 @@ __interrupt void TimerA1_ISR (void)
         //TODO: set ERROR received.
       }
       
-      UART_mode &= ~UART_RECEIVING;
+      UART_state &= ~UART_RECEIVING;
       LED_RX = 0;
       __low_power_mode_off_on_exit();
     }
