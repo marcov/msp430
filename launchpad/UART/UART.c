@@ -43,6 +43,9 @@
 #include "UART.h"             //Here the definition of UART baudrate.
 #include "board_support.h"
                               
+#if USE_RX_RINGBUFFER
+#include "ringbuf.h"
+#endif
 
 //TODO: Add a ring buffer (now it is just a useless stack-type buffer).
 //      Port to Full Duplex.
@@ -53,7 +56,7 @@
 #define ONE_BIT_TIME    ( ( (SMCLK_FREQUENCY*10 / BAUDRATE) + 5) / 10)
 #define HALF_BIT_TIME   ( ( (SMCLK_FREQUENCY*10 / BAUDRATE) + 5) / 20)
 
-#define UART_BUFFER_MAX_SIZE  16
+
 /*----------------------------------------------------------------------------*/
 
 typedef enum {
@@ -70,8 +73,19 @@ static unsigned short UART_tx_char;	// Value to transmit / in transmission
 static unsigned short UART_rx_char;	// Value received / in reception.
 static UART_state_t UART_state;
 
-static unsigned char UART_buffer[UART_BUFFER_MAX_SIZE];   // This is a stack type UART buffer shared by RX and TX
-static unsigned char UART_buffer_idx = 0; // This is the index for the previous array.
+// This buffer is common for both the stack type and the ringbuffer type
+// UART rx buffer. Dont use this to access to buffer, use the 
+// variables defined below.
+static unsigned char __UART_buffer[UART_RX_BUFFER_SIZE];
+
+#if USE_RX_RINGBUFFER
+struct ringbuf UART_rb;
+#else
+// Use this name to acess to the stack-style rx buffer.
+#define UART_rx_buffer __UART_buffer
+//Index for the stack-style UART_rx_buffer.
+static unsigned char UART_rx_buffer_idx;
+#endif
 
 /*----------------------------------------------------------------------------*/
 /*
@@ -84,6 +98,12 @@ static unsigned char UART_buffer_idx = 0; // This is the index for the previous 
 void initUART(void)
 {
   SETUP_UART_LEDS();
+  
+#if USE_RX_RINGBUFFER
+  ringbuf_init(&UART_rb, __UART_buffer, UART_RX_BUFFER_SIZE);
+#else
+  UART_rx_buffer_idx = 0;
+#endif
   
   //TXD Section
   P1DIR |= (TXD);
@@ -120,16 +140,25 @@ void initUART(void)
  */
 void UART_echo_mode(void)
 {
-  unsigned char tmp_char;
+  signed int tmp_char;
   
-  if (UART_buffer_idx > 0) {
-    // If the device has recieved a value
+#if USE_RX_RINGBUFFER
+
+  __disable_interrupt();
+  tmp_char = ringbuf_get(&UART_rb);
+  __enable_interrupt();
+  if (tmp_char != -1) {
+
+#else  
+
+  if (UART_rx_buffer_idx > 0) {
     __disable_interrupt();
-    UART_buffer_idx--;
-    tmp_char= UART_buffer[UART_buffer_idx];
+    UART_rx_buffer_idx--;
+    tmp_char= UART_rx_buffer[UART_rx_buffer_idx];
     __enable_interrupt();
-  
-    UART_putch(tmp_char);
+
+#endif    
+    UART_putch((unsigned char)tmp_char);
   }
   
   __low_power_mode_0();
@@ -149,11 +178,22 @@ void UART_echo_mode(void)
  */
 unsigned char UART_getch(void)
 {
-  while (UART_buffer_idx == 0) {
+  signed short retchar;
+  
+#if USE_RX_RINGBUFFER
+  retchar = ringbuf_get(&UART_rb);
+  while (retchar == -1) {
+    retchar = ringbuf_get(&UART_rb);
     __low_power_mode_0();
   }
+#else
+  while (UART_rx_buffer_idx == 0) {
+    __low_power_mode_0();
+  }
+  retchar = UART_rx_buffer[--UART_rx_buffer_idx];
+#endif
   
-  return UART_rx_char;
+  return retchar;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -215,6 +255,7 @@ void start_UART_rx(void)
   UART_bits_ctr = 10;		  // Load Bit counter, 8 bits + STOP 
   
   TACCR1 += HALF_BIT_TIME;     	  // set next compare value.
+  P1SEL &= ~RXD;                  // Disable peripheral mode on pin.
   TACCTL1 &= ~(CM_3+CAP);         // Disable capture mode -> set compare mode.
   
   UART_state |= UART_RECEIVING;
@@ -271,31 +312,40 @@ __interrupt void TimerA1_ISR (void)
     UART_bits_ctr --;
     
     if (UART_bits_ctr > 0) {
-      TACCR1 += ONE_BIT_TIME;		// Add Offset to CCR0.
+      // Still bits left to receive.
+      TACCR1 += ONE_BIT_TIME;
     } else {
-      // All byte received.
+      // Whole byte received.
       TACCTL1 |= (CCIE + CM_2 + CAP);   // Restore capture capability
+      P1SEL |= RXD;                     // Restore peripheral mode on pin.
       
       if ( (UART_rx_char & 0x201) == 0x200) {
         // Validate the start and stop bits are correct
         
         UART_rx_char = UART_rx_char >> 1;	// Remove start bit
         UART_rx_char &= 0xFF;			// Remove stop bit
-        
+
         __disable_interrupt();
-        if (  (UART_buffer_idx < UART_BUFFER_MAX_SIZE) ) {
+#if USE_RX_RINGBUFFER
+        ringbuf_put(&UART_rb, UART_rx_char);
+#else
+        if (  (UART_rx_buffer_idx < UART_RX_BUFFER_SIZE) ) {
           // Now char has been received, so we can stack in on
-          UART_buffer[UART_buffer_idx++] = UART_rx_char;
+          UART_rx_buffer[UART_rx_buffer_idx++] = UART_rx_char;
+        } else {
+          //TODO: buffer full
         }
+#endif
         __enable_interrupt();
       } else {
-        //TODO: set ERROR received.
+        //TODO: Hanlde RX error
+        __no_operation();
       }
-      
       UART_state &= ~UART_RECEIVING;
       LED_RX = 0;
       __low_power_mode_off_on_exit();
     }
+    
   } else {
     // So, we have detected a start bit falling edge. We need to sample it again
     // in HALF_BIT_TIME, this time using compare register.

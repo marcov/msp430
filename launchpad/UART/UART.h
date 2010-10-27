@@ -12,6 +12,11 @@
 #define LED_RX_PIN  6
 #define LEDS_PORT   1
 
+//Size of input buffer
+#define UART_RX_BUFFER_SIZE    16
+//Set to 0 to use the stack-style input buffer, instead.
+#define USE_RX_RINGBUFFER       1
+
 
 /*----------------------------------------------------------------------------*/
 // Don't edit below this.
