@@ -68,7 +68,8 @@ typedef enum {
 /*
  * Variables declaration
  */
-static unsigned char UART_bits_ctr;	// bit counter for the UART RX/TX byte.
+static unsigned char UART_TX_bits_ctr;	// bit counter for the UART TX byte.
+static unsigned char UART_RX_bits_ctr;	// bit counter for the UART RX byte.
 static unsigned short UART_tx_char;	// Value to transmit / in transmission
 static unsigned short UART_rx_char;	// Value received / in reception.
 static UART_state_t UART_state;
@@ -227,7 +228,7 @@ void UART_putch(unsigned char chr)
   
   UART_tx_char = chr;	                // Load the recieved byte into the byte to be transmitted
   UART_tx_char |= 0x100;                // Add stop bit to UART_tx_char (which is logical 1)
-  UART_bits_ctr = 9;			// Load Bit counter, 8 bits + STOP. We send start now.
+  UART_TX_bits_ctr = 9;			// Load Bit counter, 8 bits + STOP. We send start now.
                         
   TACCR0 = TAR+HALF_BIT_TIME;           //Delay the start bit of a little time.
   TACCTL0 &= ~CCIFG;                                      
@@ -252,7 +253,7 @@ void UART_putch(unsigned char chr)
 void start_UART_rx(void)
 {
   UART_rx_char = 0x00;		  // Initialize UART_rx_char
-  UART_bits_ctr = 10;		  // Load Bit counter, 8 bits + STOP 
+  UART_RX_bits_ctr = 10;		  // Load Bit counter, 8 bits + STOP 
   
   TACCR1 += HALF_BIT_TIME;     	  // set next compare value.
   P1SEL &= ~RXD;                  // Disable peripheral mode on pin.
@@ -271,7 +272,7 @@ __interrupt void TimerA0_ISR (void)
   TACCTL0 &= ~CCIFG;
   if(UART_state & UART_TRANSMITTING) {
 
-    if (UART_bits_ctr > 0) {
+    if (UART_TX_bits_ctr > 0) {
       // Still bits 2 TX
       if (UART_tx_char & 0x01) {
         TACCTL0 &= ~OUTMOD_4;
@@ -282,7 +283,7 @@ __interrupt void TimerA0_ISR (void)
       
       TACCR0 += ONE_BIT_TIME;		// Add Offset to CCR0. 
       UART_tx_char >>= 1;
-      UART_bits_ctr--;
+      UART_TX_bits_ctr--;
     } else {	
        // If all bits TXed
       TACCTL0 &= ~CCIE ;		// Disable interrupt
@@ -303,15 +304,17 @@ __interrupt void TimerA1_ISR (void)
 {
   TACCTL1 &= ~CCIFG;
   if(UART_state & UART_RECEIVING) {
-
+    
+    LED_RX^=1;
+      
     if (P1IN & RXD) {		
       // If bit is set?
       UART_rx_char |= 0x0400;		// Set the value in the UART_rx_char
     }
     UART_rx_char >>= 1;		        // Shift the bits down
-    UART_bits_ctr --;
+    UART_RX_bits_ctr--;
     
-    if (UART_bits_ctr > 0) {
+    if (UART_RX_bits_ctr > 0) {
       // Still bits left to receive.
       TACCR1 += ONE_BIT_TIME;
     } else {
