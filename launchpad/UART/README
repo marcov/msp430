@@ -1,5 +1,5 @@
-UART Library for the MSP430 Launchpad
--------------------------------------
+Full-Duplex UART Library for the MSP430 Launchpad
+--------------------------------------------------
 
 Author:   Marco Vedovati
 Email :   msp430@vedovati.info
@@ -36,10 +36,10 @@ The following combinations have been tested by calibrating the DCOCLK with a
 --------------------------------------------
 | DCOCLK | Ring buffer | baudrate | Result |
 --------------------------------------------
-|  1MHz  |     yes     |  4800    |  OK    | (Fail at long full-duplex strings)
+|  1MHz  |     yes     |  4800    |  OK    | (Fail with long full-duplex strings)
 |  1MHz  |     no      |  9600    |  OK    |
 |  1MHz  |     yes     |  9600    |  Fail  |
-|  2MHz  |     yes     |  9600    |  OK    |
+|  2MHz  |     yes     |  9600    |  OK    | (Fail with long full-duplex strings)
 --------------------------------------------
 
 
