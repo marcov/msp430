@@ -62,5 +62,6 @@ void UART_echo_mode(void);
 void UART_puts (unsigned char * str);
 unsigned char UART_getch(void);
 void UART_putch(unsigned char chr);
+void UART_putbuffer (unsigned char * txbuffer, unsigned char length);
 
 #endif //__UART_H__

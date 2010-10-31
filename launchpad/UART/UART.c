@@ -200,7 +200,7 @@ unsigned char UART_getch(void)
 
 /*----------------------------------------------------------------------------*/
 /*
- * \brief Transmits a string over UART.
+ * \brief Transmits a null terminated string over UART.
  * \param str The string to transmit, terminated by a '\0' character.
  * \return 
  *
@@ -212,6 +212,23 @@ void UART_puts (unsigned char * str)
     UART_putch(*str);
     __low_power_mode_0(); //go to low power until tx has finished, but keep SMCLK on.
     str++;
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+/*
+ * \brief Transmits an array of characters over UART.
+ * \param txbuffer The array to transmit.
+ * \param length   The sizeo of the array.
+ * \return 
+ *
+ *
+ */
+void UART_putbuffer (unsigned char * txbuffer, unsigned char length)
+{
+  for (unsigned char i = 0 ; i<length; i++) {
+    UART_putch(txbuffer[i]);
+    __low_power_mode_0(); //go to low power until tx has finished, but keep SMCLK on.
   }
 }
 
