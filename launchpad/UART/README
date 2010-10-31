@@ -1,0 +1,45 @@
+UART Library for the MSP430 Launchpad
+-------------------------------------
+
+Author:   Marco Vedovati
+Email :   msp430@vedovati.info
+
+To use this library, you must supply a valid "board_support.h" file with:
+- definition of TXD and RXD pins: they are bound to TACCR0-1 location, as 
+  described earlier. Hint: TACCRx are remapped on more pins, see datasheet.
+- definition of your SMCLK_FREQUENCY in Hz(Timer is sourced from SMCLK).
+E.g.:
+
+#define TXD             BIT1                // TXD on P1.1
+#define RXD             BIT2                // RXD on P1.2
+#define SMCLK_FREQUENCY 1000000uL
+
+UART baudrate, LEDs signaling for TX/RX and ringbuffer size and usage
+must be set in UART.h
+
+
+Notes on CPU speed and baudrates
+--------------------------------
+
+The maximum baudrate that can be obtained depends on:
+-The MCLK/SMCLK clock frequency.
+-How close the SMCLK_FREQUENCY value is to the real clock frequency.
+-Use or not of the ringbuffer.
+
+In particular, it may be worth re-calibrate the DCOCLK of the microcontroller 
+to lower the bit error rate at high baudrates. You can easy do it with a DMM or 
+logic analyzer and following instructions in "slau144".
+
+The following combinations have been tested by calibrating the DCOCLK with a
++/- 20kHz accuracy:
+
+--------------------------------------------
+| DCOCLK | Ring buffer | baudrate | Result |
+--------------------------------------------
+|  1MHz  |     yes     |  4800    |  OK    | (Fail at long full-duplex strings)
+|  1MHz  |     no      |  9600    |  OK    |
+|  1MHz  |     yes     |  9600    |  Fail  |
+|  2MHz  |     yes     |  9600    |  OK    |
+--------------------------------------------
+
+

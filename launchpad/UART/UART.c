@@ -6,7 +6,7 @@
  * Compiler: IAR EW MSP430 5.10.6
  *
  * Description:
- * Half-duplex software-UART for the MSP430 LaunchPad.
+ * FULL-duplex software-UART for the MSP430 LaunchPad.
  * This implementation uses two TimerA CC modules:
  * - TXD uses of TACCR0 module in compare mode only;
  * - RXD uses TACCR1 in capture mode to sample the START bit and reads
@@ -24,7 +24,9 @@
  * #define RXD             BIT2                // RXD on P1.2
  * #define SMCLK_FREQUENCY 1000000
  *
- * UART baudrate and LEDs signaling for TX/RX can be set in UART.h
+ *
+ * UART baudrate, LEDs signaling for TX/RX and ringbuffer size and usage
+ * must be set in UART.h
  *------------------------------------------------------------------------------
  * Original implementation from: Nicholas J. Conn - http://msp430launchpad.com
  ******************************************************************************/
@@ -38,24 +40,19 @@
  *   +-------+-------+-----+-------+-------+
  *
  ----------------------------------*/
+//TODO: Branch a half-duplex version using CCR module.
 #include <io430.h>
 #include <in430.h>
 #include "UART.h"             //Here the definition of UART baudrate.
 #include "board_support.h"
-                              
+                             
 #if USE_RX_RINGBUFFER
 #include "ringbuf.h"
 #endif
 
-//TODO: Add a ring buffer (now it is just a useless stack-type buffer).
-//      Port to Full Duplex.
-//      For half duplex a single CCR module may be enough.
-
-
 //Do a more precise rounding by using the ((..)*10 +5) /10 trick.
 #define ONE_BIT_TIME    ( ( (SMCLK_FREQUENCY*10 / BAUDRATE) + 5) / 10)
 #define HALF_BIT_TIME   ( ( (SMCLK_FREQUENCY*10 / BAUDRATE) + 5) / 20)
-
 
 /*----------------------------------------------------------------------------*/
 
@@ -121,7 +118,8 @@ void initUART(void)
   // CM = 2 : Capture on falling edge
   // CCIS = 0 : Capture input select input signal A
   // CAP : Capture mode
-  TACCTL1 = CM_2 + CCIS_0 + CAP;
+  // Syncronize capture source.
+  TACCTL1 = CM_2 + CCIS_0 + CAP + SCS;
   TACCTL1 |= CCIE;  //Enable interrupt;
 
   // TASSEL = 2 : Clock source SMCLK
@@ -141,28 +139,31 @@ void initUART(void)
  */
 void UART_echo_mode(void)
 {
-  signed int tmp_char;
+  UART_putch( UART_getch() );
+/*
+  signed int echo_char;
+  istate_t intstate;
+  
+  intstate = __get_interrupt_state();
+  __disable_interrupt();
   
 #if USE_RX_RINGBUFFER
-
-  __disable_interrupt();
-  tmp_char = ringbuf_get(&UART_rb);
-  __enable_interrupt();
-  if (tmp_char != -1) {
+  echo_char = ringbuf_get(&UART_rb);
+  __set_interrupt_state(intstate);
+  if (echo_char != -1) {
 
 #else  
-
   if (UART_rx_buffer_idx > 0) {
-    __disable_interrupt();
     UART_rx_buffer_idx--;
-    tmp_char= UART_rx_buffer[UART_rx_buffer_idx];
-    __enable_interrupt();
+    echo_char= UART_rx_buffer[UART_rx_buffer_idx];
+    __set_interrupt_state(intstate);
 
 #endif    
-    UART_putch((unsigned char)tmp_char);
+    UART_putch((unsigned char)echo_char);
+  } else {
+    __low_power_mode_0();
   }
-  
-  __low_power_mode_0();
+*/
 }
 
 /*----------------------------------------------------------------------------*/
@@ -241,30 +242,6 @@ void UART_putch(unsigned char chr)
 
 
 /*----------------------------------------------------------------------------*/
-/*
- * \brief Function called when the Start bit of a RX'd char is detected.
- *
- * You may want to call this function as irq handler for RXD falling edge.
- * \param
- * \return 
- *
- *
- */
-void start_UART_rx(void)
-{
-  UART_rx_char = 0x00;		  // Initialize UART_rx_char
-  UART_RX_bits_ctr = 10;		  // Load Bit counter, 8 bits + STOP 
-  
-  TACCR1 += HALF_BIT_TIME;     	  // set next compare value.
-  P1SEL &= ~RXD;                  // Disable peripheral mode on pin.
-  TACCTL1 &= ~(CM_3+CAP);         // Disable capture mode -> set compare mode.
-  
-  UART_state |= UART_RECEIVING;
-  LED_RX = 1;
-}
-
-
-/*----------------------------------------------------------------------------*/
 // Timer A CCR0 interrupt service routine
 #pragma vector=TIMERA0_VECTOR
 __interrupt void TimerA0_ISR (void)
@@ -304,9 +281,6 @@ __interrupt void TimerA1_ISR (void)
 {
   TACCTL1 &= ~CCIFG;
   if(UART_state & UART_RECEIVING) {
-    
-    LED_RX^=1;
-      
     if (P1IN & RXD) {		
       // If bit is set?
       UART_rx_char |= 0x0400;		// Set the value in the UART_rx_char
@@ -319,7 +293,7 @@ __interrupt void TimerA1_ISR (void)
       TACCR1 += ONE_BIT_TIME;
     } else {
       // Whole byte received.
-      TACCTL1 |= (CCIE + CM_2 + CAP);   // Restore capture capability
+      TACCTL1 |= (CCIE + CM_2 + CAP + SCS);   // Restore capture capability
       P1SEL |= RXD;                     // Restore peripheral mode on pin.
       
       if ( (UART_rx_char & 0x201) == 0x200) {
@@ -352,6 +326,14 @@ __interrupt void TimerA1_ISR (void)
   } else {
     // So, we have detected a start bit falling edge. We need to sample it again
     // in HALF_BIT_TIME, this time using compare register.
-    start_UART_rx(); 
+    UART_rx_char = 0x00;		  // Initialize UART_rx_char
+    UART_RX_bits_ctr = 10;		  // Load Bit counter, 8 bits + STOP 
+    
+    TACCR1 += HALF_BIT_TIME;     	  // set next compare value.
+    P1SEL &= ~RXD;                  // Disable peripheral mode on pin.
+    TACCTL1 &= ~(CM_3+CAP);         // Disable capture mode -> set compare mode.
+    
+    UART_state |= UART_RECEIVING;
+    LED_RX = 1;
   }
 }

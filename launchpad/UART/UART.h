@@ -2,7 +2,7 @@
 #define __UART_H__
 
 // Set the baudrate here:
-#define BAUDRATE        9600
+#define BAUDRATE        4800
 
 //Set this to 1 to have LEDs visual feedback for TX and RX activity.
 #define USE_LEDS_TXRX   1
@@ -60,7 +60,6 @@
 void initUART(void);
 void UART_echo_mode(void);
 void UART_puts (unsigned char * str);
-void start_UART_rx(void);
 unsigned char UART_getch(void);
 void UART_putch(unsigned char chr);
 
