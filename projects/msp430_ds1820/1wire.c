@@ -22,26 +22,35 @@ Description: This class handles all communication
 between the processor and the 1wire
 sensors.
 ********************************************************/
+#if defined(__GNUC__)
+#include <msp430.h>
+#else
 #include <io430.h>
 #include <in430.h>
+#endif
+
 #include "1wire.h"
 #include "board_support.h"
 #include "soft_delay.h"
 
 
+static inline void onewire_low(void)
+{
+    P1OUT |= (1 << ONEWIRE_BUS_PIN);
+    P1DIR |= (1 << ONEWIRE_BUS_PIN);
+}
 
-#define ONEWIRE_OUTPUT_LOW()	{\
-                                        ONE_WIRE_PIN_WRITE = 0; \
-                                        ONE_WIRE_PIN_DIR = 1; \
-                                }
-							
-							
-#define ONEWIRE_HIGH_IMPEDACE()	{\
-                                        ONE_WIRE_PIN_DIR = 0; \
-                                }
+static inline void onewire_hiz(void)
+{
+    P1DIR &= ~(1 << ONEWIRE_BUS_PIN);
+}
 
-// Remeber to set to high impedance before reading!!
-#define ONEWIRE_READ_PIN()		ONE_WIRE_PIN_READ
+static inline unsigned char onewire_get(void)
+{
+    P1DIR &= ~(1 << ONEWIRE_BUS_PIN);
+    return (P1IN >> ONEWIRE_BUS_PIN) & 0x01;
+}
+
 
 /*******************1-wire communication functions********************/
 
@@ -54,11 +63,11 @@ sensors.
 
 void onewire_reset()  // OK if just using a single permanently connected device
 {
-	ONEWIRE_OUTPUT_LOW();
+	onewire_low();
 	__delay_us( 500uL ); // pull 1-wire low for reset pulse
-	ONEWIRE_HIGH_IMPEDACE(); // float 1-wire high
+	onewire_hiz(); // float 1-wire high
 	__delay_us( 500uL ); // wait-out remaining initialisation window.
-	ONEWIRE_HIGH_IMPEDACE();
+	onewire_hiz();
 }
 
 /*********************** onewire_write() ********************************/
@@ -71,16 +80,16 @@ void onewire_reset()  // OK if just using a single permanently connected device
 void onewire_write(unsigned char data)
 {
 	for (unsigned char count=0; count<8; ++count) {
-		ONEWIRE_OUTPUT_LOW();
+		onewire_low();
 		__delay_us( 2 ); // pull 1-wire low to initiate write time-slot.
 		if ((data & 0x01) == 1) {
-			ONEWIRE_HIGH_IMPEDACE();
+			onewire_hiz();
 		} else {
-			ONEWIRE_OUTPUT_LOW();
+			onewire_low();
 		}
 		data >>=1;
 		__delay_us( 60 ); // wait until end of write slot.
-		ONEWIRE_HIGH_IMPEDACE(); // set 1-wire high again,
+		onewire_hiz(); // set 1-wire high again,
 		__delay_us( 2 ); // for more than 1us minimum.
 	}
 }
@@ -97,12 +106,12 @@ unsigned char onewire_read()
 	unsigned char data = 0x00;
 
 	for (unsigned char count=0; count<8; count++)	{
-		ONEWIRE_OUTPUT_LOW();
+		onewire_low();
 		__delay_us( 2 ); // pull 1-wire low to initiate read time-slot.
-		ONEWIRE_HIGH_IMPEDACE(); // now let 1-wire float high,
+		onewire_hiz(); // now let 1-wire float high,
 		__delay_us( 8 ); // let device state stabilise,
-		data |= (ONEWIRE_READ_PIN() << count);
-		
+		data |= (onewire_get() << count);
+
 		//shift_right(&data,1,input(ONE_WIRE_PIN)); // and load result.
 		__delay_us( 120 ); // wait until end of read slot.
 	}

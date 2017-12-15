@@ -8,9 +8,12 @@
 #define USE_LEDS_TXRX   1
 
 //Enter the Leds pin number 0-7 and the leds port.
-#define LED_TX_PIN  0  
-#define LED_RX_PIN  6
-#define LEDS_PORT   1
+#define LED_TX  0
+#define LED_RX  6
+#define LEDS_PORT   P1
+
+#define _PXOUT(port) P##port##OUT
+#define PXOUT(port) _PXOUT(port)
 
 //Size of input buffer
 #define UART_RX_BUFFER_SIZE    16
@@ -22,36 +25,19 @@
 // Don't edit below this.
 #if USE_LEDS_TXRX
 
-// Use this macros to access led pins faster.
-#define LED_TX            LED_OUT(LEDS_PORT, LED_TX_PIN)
-#define LED_TX_DIR        LED_DIR(LEDS_PORT, LED_TX_PIN)
-#define LED_RX            LED_OUT(LEDS_PORT, LED_RX_PIN)
-#define LED_RX_DIR        LED_DIR(LEDS_PORT, LED_RX_PIN)
+#define LED_SET(led_pin, led_val) \
+  do { P1OUT = ((led_val) != 0) ? (P1OUT | (1<<(led_pin))) : (P1OUT & ~(1<<(led_pin))); } while(0)
 
 #define SETUP_UART_LEDS()  \
-  LED_TX = 0; \
-  LED_RX = 0; \
-  LED_TX_DIR = 1; \
-  LED_RX_DIR = 1
-
-// All these macro wrapper functions are needed in order to make expansions to
-// #defined values above work!
-
-#define LED_OUT(PORT,PIN)     OUT_BIT(PORT,PIN)
-#define LED_DIR(PORT,PIN)     DIR_BIT(PORT,PIN)
-
-#define DIR_BIT(PORT,PIN)  \
-        (P ## PORT ## DIR_bit.P ## PORT ## DIR_ ## PIN)
-
-#define OUT_BIT(PORT,PIN)  \
-        (P ## PORT ## OUT_bit.P ## PORT ## OUT_ ## PIN)
+  do { \
+      P1OUT &= ~((1 << LED_TX) | (1 << LED_RX)); \
+      P1DIR |= ((1 << LED_TX) | (1 << LED_RX)); \
+  } while (0)
 
 #else
 
 #define SETUP_UART_LEDS()
-#define LED_TX
-#define LED_RX
-
+#define LED_SET(led_pin, val)
 #endif
 
 /*----------------------------------------------------------------------------*/

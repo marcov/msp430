@@ -13,16 +13,7 @@
 #define RXD             BIT2                // RXD on P1.2
 #define PUSH_BUTTON_PIN BIT3                // Push button pin on P1.3
 
-
-//Faster access to pin
-#define ACT_LED     P1OUT_bit.P1OUT_0       
-
-
 /*-------1-wire definitions-------*/
-#define ONE_WIRE_PORT_PIN	5
-// Dont change the following!
-#define ONE_WIRE_PIN_WRITE	P1OUT_bit.P1OUT_5
-#define ONE_WIRE_PIN_READ       P1IN_bit.P1IN_5
-#define ONE_WIRE_PIN_DIR	P1DIR_bit.P1DIR_5
+#define ONEWIRE_BUS_PIN    5
 
 #endif //__BOARD_SUPPORT_H__

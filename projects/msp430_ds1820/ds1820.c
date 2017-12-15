@@ -1,5 +1,9 @@
+#if defined(__GNUC__)
+#include <msp430.h>
+#else
 #include <io430.h>
 #include <in430.h>
+#endif
 #include "ds1820.h"
 #include "1wire.h"
 #include "soft_delay.h"
@@ -18,66 +22,66 @@
  */
 void DS1820_get_temperature_registers(unsigned char * regbuffer)
 {
-  unsigned char busy=0;  
-  
+  unsigned char busy=0;
+
   onewire_reset();
   onewire_write(SKIP_ROM_CHECK);
   onewire_write(START_T_CONVERSION);
-  
+
   __delay_ms(100);
-  
+
   do {
     busy = onewire_read();
   } while (busy == 0);
-  
+
   onewire_reset();
   onewire_write(SKIP_ROM_CHECK);
   onewire_write(READ_SCRATCHPAD);
-  
+
   for (unsigned char i = 0 ; i<DS1820_SPAD_REGISTER_SIZE ; i++) {
           regbuffer[i] = onewire_read();
   }
-  
+
 }
 
 
 /*
- * \brief Reads temperature from DS1820 and returns the value converted in 
+ * \brief Reads temperature from DS1820 and returns the value converted in
  * T*100 unit.
  * \param temperature pointer to memory location to store temperature.
  * \return
  */
 void DS1820_get_temperature(signed short * temperature)
 {
-  
+
   unsigned char scratchpad_register[DS1820_SPAD_REGISTER_SIZE];
-  
+
   // Get DS1820 temperature registers.
   DS1820_get_temperature_registers(scratchpad_register);
 
-	
+
 //1: Temperature with the standard resolution:
 //Format:
 //Abs(T) * 10.
 //The MSB of temperature represent the sign!
 /*
 	*temperature = scratchpad_register[0];
-	
+
 	sign = scratchpad_register[1];
-	
+
 	// We want to store the absolute value.
  	if (sign > 0) {
  		*temperature = -(signed char)*temperature;
- 	} 
- 	
+ 	}
+
  	*temperature *=5;		// In this way we will get temperature x10 value.
-	
+
 	//Cowardly adding sign.
 	if (sign > 0) {
  		*temperature |= 0x8000;
 	}
 */
-	
+
 //2: Using float
 // Format:
 // float

@@ -10,11 +10,16 @@
  * Original implementation from:
  * Author: Nicholas J. Conn - http://msp430launchpad.com
  ******************************************************************************/
+#if defined(__GNUC__)
+#include <msp430.h>
+#else
 #include <io430.h>
 #include <in430.h>
+#endif
+
 #include "UART.h"
 #include "board_support.h"
-/* 
+/*
  *  TX and RX transmit order:
  *
  *   (1st bit)                     (last bit)
@@ -29,7 +34,7 @@
 #define BAUDRATE_1200    	833
 #define BAUDRATE_2400    	417
 #define BAUDRATE_4800    	208
-#define BAUDRATE_9600    	104		
+#define BAUDRATE_9600    	104
 
 #define ONE_BIT_TIME      BAUDRATE_9600
 #define HALF_BIT_TIME   (ONE_BIT_TIME / 2)
@@ -62,7 +67,7 @@ static void start_UART_tx_char(char chr);
 /*
  * \brief Initializes the UART pins.
  * \param
- * \return 
+ * \return
  *
  *
  */
@@ -71,13 +76,13 @@ void initUART(void)
   P1SEL &= ~(TXD+BIT0);
   P1OUT |= TXD;     // Set TX as idle high.
   P1DIR |= (TXD+BIT0);
-  
+
   P1IES |= RXD;				// RXD Hi/lo edge interrupt
   P1IFG &= ~RXD;			// Clear RXD (flag) before enabling interrupt
   P1IE |= RXD;				// Enable RXD interrupt
- 
+
   TACTL = TASSEL_2;                    // TimerA clock source is SMCLK.
-  
+
   UART_mode = UART_IDLE;
 }
 
@@ -85,7 +90,7 @@ void initUART(void)
 /*
  * \brief Echo back character received from UART.
  * \param
- * \return 
+ * \return
  *
  *
  */
@@ -96,7 +101,7 @@ void UART_echo_mode(void)
     UART_mode = UART_IDLE;
     start_UART_tx_char(UART_rx_char);
   } else {
-    __low_power_mode_0();        
+    __low_power_mode_0();
     // LPM0, the PORT1 interrupt will wake the processor up. This is so that it does not
     //	endlessly loop when no value has been Received.
   }
@@ -106,7 +111,7 @@ void UART_echo_mode(void)
 /*
  * \brief Transmits a string over UART.
  * \param str The string to transmit, terminated by a '\0' character.
- * \return 
+ * \return
  *
  *
  */
@@ -123,26 +128,26 @@ void UART_tx_string (char * str)
 /*
  * \brief Trigger the start of a char TX over UART.
  * \param the character to transmit.
- * \return 
+ * \return
  *
  *
  */
 static void start_UART_tx_char(char chr)
-{ 
+{
   while(UART_mode == UART_RECEIVING);   // Wait for RX completion
-  
+
   UART_tx_char = chr;	                // Load the recieved byte into the byte to be transmitted
   UART_tx_char |= 0x100;                // Add stop bit to UART_tx_char (which is logical 1)
-  UART_tx_char <<= 1;	                // Add start bit (which is logical 0)  
+  UART_tx_char <<= 1;	                // Add start bit (which is logical 0)
   UART_bits_ctr = 10;			// Load Bit counter, 8 bits + STOP. We send start now.
-  
+
   UART_mode = UART_TRANSMITTING;
-  
+
   TACTL |= MC_2;		        // Start TIMER continuous mode
   CCR0 = (TAR);			        // Initialize compare register
   CCTL0 = CCIE+CCIFG;
-  
-  ACT_LED = 1;
+
+  P1OUT |= (1 << ACT_LED_PIN);
 }
 
 
@@ -152,7 +157,7 @@ static void start_UART_tx_char(char chr)
  *
  * You may want to call this function as irq handler for RXD falling edge.
  * \param
- * \return 
+ * \return
  *
  *
  */
@@ -160,38 +165,43 @@ void start_UART_rx(void)
 {
   //Start of RX
   UART_mode = UART_RECEIVING;
-  
-  ACT_LED = 1;
-  
+
+  P1OUT |= (1 << ACT_LED_PIN);
+
   P1IE &= ~RXD;			// Disable RXD interrupt
   P1IFG &= ~RXD;		// Clear RXD IFG (interrupt flag)
-  
-  TACTL |= MC_2;		        // Start TIMER continuous mode 
+
+  TACTL |= MC_2;		        // Start TIMER continuous mode
   CCR0 = TAR;			// Initialize compare register
   CCR0 += HALF_BIT_TIME;	// Latch bit at half of the bit time.
   CCTL0 = CCIE;         	// Dissable TX and enable interrupts
-  
+
   UART_rx_char = 0;		// Initialize UART_rx_char
-  UART_bits_ctr = 9;		// Load Bit counter, 8 bits + STOP    
+  UART_bits_ctr = 9;		// Load Bit counter, 8 bits + STOP
 }
 
 
 /*----------------------------------------------------------------------------*/
 // Timer A CCR0 interrupt service routine
+#if !defined(__GNUC__)
 #pragma vector=TIMERA0_VECTOR
-__interrupt void TimerA0_ISR (void)
-{                        
+__interrupt
+#else
+__attribute__ ((interrupt(TIMER0_A0_VECTOR)))
+#endif
+void TimerA0_ISR (void)
+{
   if(UART_mode == UART_TRANSMITTING) {
-    CCR0 += ONE_BIT_TIME;			// Add Offset to CCR0  
-    
-    if ( UART_bits_ctr == 0) {		
+    CCR0 += ONE_BIT_TIME;			// Add Offset to CCR0
+
+    if ( UART_bits_ctr == 0) {
       // If all bits TXed
       UART_mode = UART_IDLE;
-      
-      TACTL_bit.TAMC &= 0;	// timer off (for power consumption)
+
+      TACTL &= ~(MC_2); // timer off (for power consumption)
       CCTL0 &= ~ CCIE ;		// Disable interrupt
       __low_power_mode_off_on_exit();
-      ACT_LED =0;
+      P1OUT &= ~(1 << ACT_LED_PIN);
     }
     else {
       if (UART_tx_char & 0x01) {
@@ -204,29 +214,29 @@ __interrupt void TimerA0_ISR (void)
       UART_bits_ctr--;
     }
   } else {
-    CCR0 += ONE_BIT_TIME;				// Add Offset to CCR0  
+    CCR0 += ONE_BIT_TIME;				// Add Offset to CCR0
     if ( UART_bits_ctr == 0) {
-      TACTL_bit.TAMC &= 0;	// timer off (for power consumption)
+      TACTL &= ~(MC_2); // timer off (for power consumption)
       CCTL0 &= ~ CCIE ;			// Disable interrupt
-      
+
       P1IFG &= ~RXD;				// clear RXD IFG (interrupt flag)
       P1IE |= RXD;				// enabled RXD interrupt
-      
+
       if ( (UART_rx_char & 0x201) == 0x200) {
         // Validate the start and stop bits are correct
-      
+
         UART_rx_char = UART_rx_char >> 1;	// Remove start bit
         UART_rx_char &= 0xFF;			// Remove stop bit
         UART_mode = UART_RECEIVED;
       } else {
         UART_mode = UART_ERROR;
       }
-      
-      ACT_LED = 0;
+
+      P1OUT &= ~(1 << ACT_LED_PIN);
       __low_power_mode_off_on_exit();
     }
     else {
-      if ( (P1IN & RXD) == RXD) {		
+      if ( (P1IN & RXD) == RXD) {
         // If bit is set?
         UART_rx_char |= 0x400;		// Set the value in the UART_rx_char
       }
