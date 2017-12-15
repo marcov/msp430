@@ -55,8 +55,8 @@
 #endif
 
 //Do a more precise rounding by using the ((..)*10 +5) /10 trick.
-#define ONE_BIT_TIME    ( ( (SMCLK_FREQUENCY*10 / BAUDRATE) + 5) / 10)
-#define HALF_BIT_TIME   ( ( (SMCLK_FREQUENCY*10 / BAUDRATE) + 5) / 20)
+#define ONE_BIT_TIME    ( ( (SMCLK_FREQUENCY*10 / UART_BAUDRATE) + 5) / 10)
+#define HALF_BIT_TIME   ( ( (SMCLK_FREQUENCY*10 / UART_BAUDRATE) + 5) / 20)
 
 /*----------------------------------------------------------------------------*/
 

@@ -55,17 +55,17 @@
 #endif
 
 //Do a more precise rounding by using the ((..)*10 +5) /10 trick.
-#define ONE_BIT_TA_TICKS    ( ( (SMCLK_FREQUENCY*10 / BAUDRATE) + 5) / 10)
-#define HALF_BIT_TA_TICKS   ( ( (SMCLK_FREQUENCY*10 / BAUDRATE) + 5) / 20)			//Time expressed in TimerA clock ticks
- 
+#define ONE_BIT_TA_TICKS    ( ( (SMCLK_FREQUENCY*10 / UART_BAUDRATE) + 5) / 10)
+#define HALF_BIT_TA_TICKS   ( ( (SMCLK_FREQUENCY*10 / UART_BAUDRATE) + 5) / 20)			//Time expressed in TimerA clock ticks
+
 #define MICROSECONDS_IN_SEC     1000000uL
-#define ONE_BIT_TIME        ( ( (MICROSECONDS_IN_SEC*10/ BAUDRATE) + 5) / 10)  
-#define HALF_BIT_TIME       ( ( (MICROSECONDS_IN_SEC*10/ BAUDRATE) + 5) / 20)     //Time expressed in us
+#define ONE_BIT_TIME        ( ( (MICROSECONDS_IN_SEC*10/ UART_BAUDRATE) + 5) / 10)
+#define HALF_BIT_TIME       ( ( (MICROSECONDS_IN_SEC*10/ UART_BAUDRATE) + 5) / 20)     //Time expressed in us
 
 //Values measured sperimentally!!
 #define ISR_DELAY_CYCLES    35 //This is the delay from the bit edge to the actual
                                //point in the ISR in which the RXD pin is read.
-#define START_BIT_TO_CCR_ASSIGN 215  
+#define START_BIT_TO_CCR_ASSIGN 215
 
 #define ISR_DELAY_TICKS     ISR_DELAY_CYCLES
 #define ISR_DELAY_TIME      ((ISR_DELAY_CYCLES * 1000000) / SMCLK_FREQUENCY)			//Time expressed in us
@@ -314,7 +314,7 @@ void TimerA0_ISR (void)
         TACCTL0 |= OUTMOD_5;
       }
 
-      TACCR0 += ONE_BIT_TA_TICKS;		// Add Offset to CCR0. 
+      TACCR0 += ONE_BIT_TA_TICKS;		// Add Offset to CCR0.
       uart_ctxt.txval >>= 1;
       uart_ctxt.tx_bits_ctr--;
     } else {
@@ -342,7 +342,7 @@ __attribute__ ((interrupt(TIMER0_A1_VECTOR)))
 void TimerA1_ISR (void)
 {
   unsigned short compare_value;
-  
+
   TACCTL1 &= ~CCIFG;
   if ((uart_ctxt.state & UART_RXING) != 0) {
     if (P1IN & RXD) {
@@ -398,7 +398,7 @@ void TimerA1_ISR (void)
     // in HALF_BIT_TA_TICKS, this time using compare register.
 
 #if (HALF_BIT_TA_TICKS-ISR_DELAY_TICKS > START_BIT_TO_CCR_ASSIGN)
-//#if 0    
+//#if 0
     compare_value = TACCR1 + (HALF_BIT_TA_TICKS - ISR_DELAY_TICKS);  // set next compare value.
     uart_ctxt.rx_bits_ctr = 10;		  // Load Bit counter, 8 bits + STOP
 #else
@@ -409,19 +409,19 @@ void TimerA1_ISR (void)
     uart_ctxt.rx_bits_ctr = 9;		  // Load Bit counter, 8 bits + STOP
     } else {
       //This is not a start bit or we are already in the 1st data bit => abort.
-      return;       
+      return;
     }
-#endif 
-    
+#endif
+
     TACCTL1 &= ~(CM_3+CAP);         // Disable capture mode -> set compare mode.
     P1SEL &= ~RXD;                  // Disable peripheral mode on pin.
-    
-    TACCR1 = compare_value;         //We have to use compare value because, when 
+
+    TACCR1 = compare_value;         //We have to use compare value because, when
                                     //CCR module goes from Capture to Compare mode,
                                     //the TACCR1 value is set to TAR!!
     uart_ctxt.rxval = 0x00;		  // Initialize uart_ctxt.rxval
 
-   uart_ctxt.state |= UART_RXING;
+    uart_ctxt.state |= UART_RXING;
     LED_SET(LED_RX, 1);
   }
 }

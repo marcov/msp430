@@ -9,7 +9,7 @@ VPATH := \
   . \
   ../../libs/ADC10 \
 
-C_SRC_FILESLIST := ../../libs/UART/UART.c ../../libs/ringbuf.c
+C_SRC_FILESLIST := ../../libs/UART/uart.c ../../libs/ringbuf.c
 
 MCU := msp430g2452
 
@@ -17,7 +17,7 @@ MCU := msp430g2452
 INCLUDE_PATHS_LIST := /opt/ti/gcc/include  ../../libs/UART
 
 # Extra CFLAGS to use when compiling
-USER_CFLAGS := -mmcu=$(MCU)
+USER_CFLAGS := -mmcu=$(MCU) -DUART_BAUDRATE=4800
 
 # Extra LDFLAGS to use when linking
 USER_LFLAGS := -mmcu=$(MCU) -L /opt/ti/gcc/include -T $(MCU).ld

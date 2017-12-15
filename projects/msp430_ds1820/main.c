@@ -5,7 +5,7 @@
 #include <in430.h>
 #endif
 #include <stdbool.h>
-#include "UART.h"
+#include "uart.h"
 #include "board_support.h"
 #include "ds1820.h"
 #include "shared.h"

@@ -2,7 +2,9 @@
 #define __UART_H__
 
 // Set the baudrate here:
-#define BAUDRATE        4800
+#if !defined(UART_BAUDRATE)
+#  define UART_BAUDRATE 4800
+#endif
 
 //Set this to 1 to have LEDs visual feedback for TX and RX activity.
 #define USE_LEDS_TXRX   1
